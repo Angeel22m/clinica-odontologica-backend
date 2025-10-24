@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 1: Build
 # -----------------------------
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 
 # Instalar herramientas necesarias para compilación de Prisma y otros paquetes nativos
@@ -22,7 +22,7 @@ RUN npm run build
 # -----------------------------
 # Stage 2: Runtime
 # -----------------------------
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 
 # Copiar solo build y package.json
