@@ -1,34 +1,27 @@
-# -----------------------------
 # Stage 1: Build
-# -----------------------------
 FROM node:22-alpine AS build
 WORKDIR /app
 
-# Herramientas necesarias para compilar paquetes nativos (Prisma)
-RUN apk add --no-cache python3 make g++
+# Herramientas necesarias para compilar Prisma
+RUN apk add --no-cache bash python3 make g++ libc6-compat
 
-# Copiar package.json y package-lock.json
+# Copiar dependencias
 COPY package*.json ./
-
-# Instalar todas las dependencias (dev incluidas)
 RUN npm ci
 
 # Generar Prisma Client
 RUN npx prisma generate
 
-# Copiar el código fuente
+# Copiar código fuente
 COPY . .
 
-# Compilar NestJS
+# Build NestJS
 RUN npm run build
 
-# -----------------------------
 # Stage 2: Runtime
-# -----------------------------
 FROM node:22-alpine AS runtime
 WORKDIR /app
 
-# Copiar solo build y package.json
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./
 
@@ -36,8 +29,7 @@ COPY --from=build /app/package.json ./
 RUN npm install --omit=dev
 
 EXPOSE 3000
-
-# Apuntar al path correcto del main.js
 CMD ["node", "dist/src/main.js"]
+
 
 
