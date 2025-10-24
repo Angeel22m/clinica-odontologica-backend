@@ -9,6 +9,8 @@ async function bootstrap() {
     'http://localhost',      // El frontend sin puerto (implica puerto 80)
     'http://localhost:80',   // Frontend explícitamente en puerto 80
     'http://localhost:3000', // Posible origen si el frontend estuviera en 3000
+    'http://localhost:5173', // Puerto común para Vite
+    'http://localhost:8080', // Puerto común para otros servidores de desarrollo
     // Agrega cualquier otro puerto que uses para el frontend (ej. 5173 para Vite, 4200 para Angular, etc.)
   ];
 
