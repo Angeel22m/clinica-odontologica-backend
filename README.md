@@ -23,7 +23,25 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.$
+
+
+## Proyecto dockerizado
+
+```bash
+$ docker pull angeel22m/clinica-backend
+```
+## Levantar con docker
+
+```bash
+$ docker run angeel22m/clinica-backend
+$ docker run -p 3000:3000 angeel22m/clinica-backend #si quieres probar en postman o navegador
+```
+## verificar docker
+
+```bash
+$ docker ps
+```
 
 ## Project setup
 
