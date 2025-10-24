@@ -1,7 +1,8 @@
 # ------------------ ETAPA 1: Construcción (Builder) ------------------
 FROM node:22-alpine AS builder
 
-# 1. DECLARA ARG (Recibe el valor del workflow/build)
+# 1. REINTRODUCIMOS ARG para recibir la URL desde GitHub Actions o el comando 'docker build'.
+# Este es el método correcto para inyectar secretos que no están en el repositorio.
 ARG DATABASE_URL
 
 WORKDIR /app
@@ -10,16 +11,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copia código fuente
-COPY . .
+# 2. Copia el resto del código fuente (ya no copiamos .env)
+COPY . . 
 
-# 2. Asigna ENV (Necesario para el paso 'prisma generate')
+# 3. Hacemos el ARG disponible como ENV para que 'prisma generate' lo pueda leer.
 ENV DATABASE_URL=${DATABASE_URL}
 
-# 3. Genera el cliente de Prisma (Éxito garantizado con el ARG/ENV)
+# 4. Genera el cliente de Prisma (Ahora usa la variable inyectada via ARG)
 RUN npx prisma generate
 
-# 4. Construye la aplicación NestJS
+# 5. Construye la aplicación NestJS
 RUN npm run build
 
 # ------------------ ETAPA 2: Producción (Runner) ------------------
@@ -28,9 +29,9 @@ FROM node:22-alpine AS runner
 # Configura la variable de entorno de producción
 ENV NODE_ENV production
 
-# 🚨 CORRECCIÓN CLAVE: Declarar la ENV en la imagen final
-# Esto le indica al contenedor que debe esperar esta variable en runtime.
-ENV DATABASE_URL
+# La ENV vacía se mantiene. Esto le dice a la aplicación que debe esperar
+# la URL de producción en runtime, y no filtra ningún valor de ARG anterior.
+ENV DATABASE_URL=""
 
 WORKDIR /usr/src/app
 
@@ -47,3 +48,4 @@ EXPOSE 3000
 
 # Comando para ejecutar la aplicación con la ruta corregida
 CMD [ "node", "dist/src/main.js" ]
+
