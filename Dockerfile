@@ -1,18 +1,27 @@
-# Stage 1: build
+# -----------------------------
+# Stage 1: Build
+# -----------------------------
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copiar package.json y lockfile para instalar dependencias
+# Instalar herramientas necesarias para compilación de Prisma y otros paquetes nativos
+RUN apk add --no-cache python3 make g++
+
+# Copiar package.json y package-lock.json
 COPY package*.json ./
+
+# Instalar todas las dependencias (incluyendo dev para Prisma)
 RUN npm ci
 
-# Copiar todo el código fuente
+# Copiar todo el código
 COPY . .
 
-# Compilar NestJS
+# Build NestJS
 RUN npm run build
 
-# Stage 2: runtime
+# -----------------------------
+# Stage 2: Runtime
+# -----------------------------
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
@@ -21,7 +30,8 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./
 
 # Instalar solo dependencias de producción
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
+
