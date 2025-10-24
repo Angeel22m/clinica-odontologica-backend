@@ -4,14 +4,32 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Lista de orígenes permitidos en desarrollo local
+  const allowedOrigins = [
+    'http://localhost',      // El frontend sin puerto (implica puerto 80)
+    'http://localhost:80',   // Frontend explícitamente en puerto 80
+    'http://localhost:3000', // Posible origen si el frontend estuviera en 3000
+    // Agrega cualquier otro puerto que uses para el frontend (ej. 5173 para Vite, 4200 para Angular, etc.)
+  ];
+
   // Habilitar CORS (para permitir peticiones desde el frontend)
   app.enableCors({
-    origin: '*',
+    // Permite los orígenes definidos arriba
+    origin: allowedOrigins,
+    
+    // Métodos HTTP permitidos
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true, // para usar cookies o autenticación
+    
+    // Cabeceras permitidas (si el frontend envía cabeceras personalizadas)
+    // Dejar vacío o con 'Content-Type, Accept' suele ser suficiente
+    // allowedHeaders: 'Content-Type, Accept, Authorization', 
+
+    // Necesario si usas cookies, sesiones o tokens de autenticación
+    credentials: true, 
   });
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Servidor corriendo en http://localhost:${process.env.PORT ?? 3000}`);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Servidor corriendo en http://localhost:${port}`);
 }
 bootstrap();
