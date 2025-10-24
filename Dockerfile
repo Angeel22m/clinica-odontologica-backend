@@ -1,35 +1,51 @@
-# Stage 1: Build
-FROM node:22-alpine AS build
+# ------------------ ETAPA 1: Construcción (Builder) ------------------
+FROM node:22-alpine AS builder
+
+# 1. DECLARA EL ARGUMENTO DE CONSTRUCCIÓN
+# Docker usará el valor pasado por el workflow aquí.
+ARG DATABASE_URL
+
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Herramientas necesarias para compilar Prisma
-RUN apk add --no-cache bash python3 make g++ libc6-compat
-
-# Copiar dependencias
+# Copia los archivos de manifiesto
 COPY package*.json ./
-RUN npm ci
 
-# Generar Prisma Client
-RUN npx prisma generate
+# Instala todas las dependencias
+RUN npm install
 
-# Copiar código fuente
+# Copia el resto de los archivos fuente de la aplicación
 COPY . .
 
-# Build NestJS
+# 2. Asigna la variable de entorno para que Prisma la use en este paso
+ENV DATABASE_URL=${DATABASE_URL}
+
+# 3. Genera los archivos de cliente de Prisma (Soluciona el error)
+RUN npx prisma generate
+
+# 4. Construye la aplicación NestJS
 RUN npm run build
 
-# Stage 2: Runtime
-FROM node:22-alpine AS runtime
-WORKDIR /app
+# ------------------ ETAPA 2: Producción (Runner) ------------------
+FROM node:22-alpine AS runner
 
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./
+# Configura la variable de entorno para el entorno de producción
+ENV NODE_ENV production
 
-# Instalar solo dependencias de producción
+# Establece el directorio de trabajo
+WORKDIR /usr/src/app
+
+# Copia SOLO los archivos esenciales de la etapa de construcción:
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/dist ./dist/
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma/
+
+# Instala SÓLO las dependencias de producción
 RUN npm install --omit=dev
 
+# Expone el puerto (3000 por defecto)
 EXPOSE 3000
-CMD ["node", "dist/src/main.js"]
 
-
-
+# Comando para ejecutar la aplicación
+# La ruta corregida es 'dist/src/main.js'
+CMD [ "node", "dist/src/main.js" ]
