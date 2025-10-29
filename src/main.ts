@@ -1,9 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common'; 
-
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+   // Configuración de Swagger
+  const config = new DocumentBuilder()
+    .setTitle('Clinica Odontológica API')
+    .setDescription('API para gestión de expedientes, citas y servicios')
+    .setVersion('1.0')
+    .addBearerAuth() // si manejas JWT
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-docs', app, document); // URL: /api-docs
 
   // Habilita validaciones globales (necesario para class-validator)
   app.useGlobalPipes(
@@ -43,5 +54,6 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`Servidor corriendo en http://localhost:${port}`);
+  console.log(`Swagger disponible en http://localhost:${port}/api-docs`);
 }
 bootstrap();
