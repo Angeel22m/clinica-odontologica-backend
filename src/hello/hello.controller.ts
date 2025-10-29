@@ -7,6 +7,6 @@ export class HelloController {
 
   @Get()
   async getHello() {
-    return { message: await this.helloService.getHello() };
+    return { message: await this.helloService.findAll() };
   }
 }
