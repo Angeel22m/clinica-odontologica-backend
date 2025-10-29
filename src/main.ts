@@ -1,9 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common'; 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Habilita validaciones globales (necesario para class-validator)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // elimina propiedades no definidas en el DTO
+      forbidNonWhitelisted: true, // lanza error si se envían campos no permitidos
+      transform: true, // transforma los tipos automáticamente (ej. string → number)
+    }),
+  );
+  
   // Lista de orígenes permitidos en desarrollo local
   const allowedOrigins = [
     'http://localhost',      // El frontend sin puerto (implica puerto 80)
