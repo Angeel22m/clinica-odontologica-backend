@@ -12,7 +12,7 @@ CREATE TABLE "Persona" (
     "id" SERIAL NOT NULL,
     "nombre" TEXT NOT NULL,
     "apellido" TEXT NOT NULL,
-    "dni" TEXT,
+    "dni" TEXT NOT NULL,
     "telefono" TEXT,
     "direccion" TEXT,
     "fechaNac" TIMESTAMP(3),
@@ -68,6 +68,7 @@ CREATE TABLE "Expediente" (
     "doctorId" INTEGER NOT NULL,
     "alergias" TEXT,
     "enfermedades" TEXT,
+    "medicamentos" TEXT,
     "observaciones" TEXT,
     "activo" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -115,30 +116,9 @@ CREATE TABLE "Cita" (
     "doctorId" INTEGER NOT NULL,
     "servicioId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Cita_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Factura" (
-    "id" SERIAL NOT NULL,
-    "pacienteId" INTEGER NOT NULL,
-    "fecha" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "total" DOUBLE PRECISION NOT NULL,
-
-    CONSTRAINT "Factura_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "FacturaDetalle" (
-    "id" SERIAL NOT NULL,
-    "facturaId" INTEGER NOT NULL,
-    "servicioId" INTEGER NOT NULL,
-    "cantidad" INTEGER NOT NULL DEFAULT 1,
-    "subtotal" DOUBLE PRECISION NOT NULL,
-
-    CONSTRAINT "FacturaDetalle_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -152,6 +132,12 @@ CREATE UNIQUE INDEX "User_personaId_key" ON "User"("personaId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Empleado_personaId_key" ON "Empleado"("personaId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Expediente_pacienteId_key" ON "Expediente"("pacienteId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Cita_fecha_doctorId_key" ON "Cita"("fecha", "doctorId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_personaId_fkey" FOREIGN KEY ("personaId") REFERENCES "Persona"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -185,12 +171,3 @@ ALTER TABLE "Cita" ADD CONSTRAINT "Cita_doctorId_fkey" FOREIGN KEY ("doctorId") 
 
 -- AddForeignKey
 ALTER TABLE "Cita" ADD CONSTRAINT "Cita_servicioId_fkey" FOREIGN KEY ("servicioId") REFERENCES "ServicioClinico"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Factura" ADD CONSTRAINT "Factura_pacienteId_fkey" FOREIGN KEY ("pacienteId") REFERENCES "Persona"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FacturaDetalle" ADD CONSTRAINT "FacturaDetalle_facturaId_fkey" FOREIGN KEY ("facturaId") REFERENCES "Factura"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FacturaDetalle" ADD CONSTRAINT "FacturaDetalle_servicioId_fkey" FOREIGN KEY ("servicioId") REFERENCES "ServicioClinico"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
