@@ -3,6 +3,12 @@
 /node_modules
 /build
 
+# Ignorar el Dockerfile
+Dockerfile
+
+# Ignorar el esquema de Prisma
+prisma/schema.prisma
+
 # Logs
 logs
 *.log
