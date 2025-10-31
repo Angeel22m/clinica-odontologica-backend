@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -25,7 +24,6 @@ async function bootstrap() {
       transform: true, // transforma los tipos automáticamente (ej. string → number)
     }),
   );
-
   // Lista de orígenes permitidos en desarrollo local
   const allowedOrigins = [
     'http://localhost', // El frontend sin puerto (implica puerto 80)
@@ -55,5 +53,6 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`Servidor corriendo en http://localhost:${port}`);
+  console.log(`Swagger disponible en http://localhost:${port}/api-docs`);
 }
 bootstrap();
