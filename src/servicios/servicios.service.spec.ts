@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ServiciosService } from '.././servicios/servicios.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { ServiciosService } from '../src/servicios/servicios.service';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 describe('ServiciosService', () => {
   let service: ServiciosService;
@@ -34,6 +34,15 @@ describe('ServiciosService', () => {
       },
       mockFindFirstReturn: { id: 1, nombre: 'Limpieza' },
       expected: { message: 'El servicio ya existe', code: 3 },
+    },
+    {
+      input: {
+        nombre: 'Limpieza Completa',
+        descripcion: 'desc',
+        precio: 100,
+        activo: true,
+      },
+      expected: { message: expect.any(Object), code: 0 },
     },
   ];
 
@@ -89,7 +98,7 @@ describe('ServiciosService', () => {
 
     expect(prisma.servicioClinico.create as jest.Mock).toHaveBeenCalledWith({
       data: {
-        nombre: 'Limpieza',
+        nombre: 'Limpieza Completa',
         descripcion: 'desc',
         precio: 100,
         activo: true,

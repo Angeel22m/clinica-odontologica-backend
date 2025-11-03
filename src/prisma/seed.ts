@@ -57,7 +57,7 @@ async function main() {
   // ... (El código de la sección 2 (Usuarios) permanece igual) ...
   // Clientes
   for (let i = 1; i <= NUM_CLIENTES; i++) {
-    usersData.push({ correo: `c${i}@mail.com`, password: '123456', rol: Rol.CLIENTE, personaId: i });
+    usersData.push({ correo: `c${i}@mail.com`, password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.CLIENTE, personaId: i });
   }
   // Empleados 
   usersData.push({ correo: 'laura@doc.com', password: '123456', rol: Rol.DOCTOR, personaId: 21 });
