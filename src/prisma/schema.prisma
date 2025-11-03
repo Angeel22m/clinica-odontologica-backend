@@ -125,19 +125,20 @@ model ExpedienteDetalle {
 
 // ------------------ EXPEDIENTE ARCHIVO ------------------
 model ExpedienteArchivo {
-  id            Int       @id @default(autoincrement())
-  expedienteId  Int
-  expediente    Expediente @relation(fields: [expedienteId], references: [id])
+  id               Int      @id @default(autoincrement())
+  expedienteId     Int
+  expediente       Expediente @relation(fields: [expedienteId], references: [id])
 
-  nombreArchivo String
-  url           String
-  tipoArchivo   String?
+  nombreArchivo    String 
+  filePath     String
+  storageName  String @unique
 
-  creadoPorId   Int
-  creadoPor     Empleado  @relation(fields: [creadoPorId], references: [id])
+  tipoArchivo      String? 
+  creadoPorId      Int
+  creadoPor        Empleado @relation(fields: [creadoPorId], references: [id])
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 // ------------------ CITA ------------------

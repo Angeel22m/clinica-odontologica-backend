@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException,InternalServerErrorException,BadRequestException } from '@nestjs/common';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
 
