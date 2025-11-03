@@ -167,7 +167,8 @@ async function main() {
           data: {
               expedienteId: expedienteId,
               nombreArchivo: `Radiografia-${i + 1}.jpg`,
-              url: `https://storage.clinic.com/files/rad-${i + 1}`,
+              storageName: `https://storage.clinic.com/files/rad-${i + 1}`,
+              filePath: `/files/rad-${i + 1}`,
               tipoArchivo: 'JPEG',
               creadoPorId: creadoPorId,
           }
