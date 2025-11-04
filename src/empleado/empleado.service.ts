@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'prisma/prisma.service';
+import { Injectable,OnModuleDestroy,OnModuleInit,NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmpleadoDto } from './dtoempleado/create-empleado.dto';
 import { UpdateEmpleadoDto } from './dtoempleado/update-empleado.dto';
 

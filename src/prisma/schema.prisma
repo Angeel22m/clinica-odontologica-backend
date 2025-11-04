@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------ PERSONA ------------------
+model Persona {
+  id           Int       @id @default(autoincrement())
+  nombre       String
+  apellido     String
+  dni          String    @unique // Sugerencia: obligatorio y único
+  telefono     String?
+  direccion    String?
+  fechaNac     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relaciones
+  user         User?
+  empleado     Empleado?
+  expedientes  Expediente[] // El paciente tiene un expediente
+  citas        Cita[]       // Citas como paciente
+}
+
+// ------------------ USER ------------------
+model User {
+  id          Int      @id @default(autoincrement())
+  correo      String   @unique
+  password    String
+  rol         Rol      @default(CLIENTE)
+  activo      Boolean  @default(true)
+  personaId   Int      @unique
+  persona     Persona  @relation(fields: [personaId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum Rol {
+  ADMIN
+  DOCTOR
+  RECEPCIONISTA
+  CLIENTE
+}
+
+// ------------------ EMPLEADO ------------------
+model Empleado {
+  id           Int      @id @default(autoincrement())
+  personaId    Int      @unique
+  persona      Persona  @relation(fields: [personaId], references: [id])
+  puesto       Puesto
+  salario      Float
+  fechaIngreso DateTime @default(now())
+  activo       Boolean  @default(true)
+
+  // Relaciones inversas
+  expedientes      Expediente[]        // Expediente.doctor
+  detalles         ExpedienteDetalle[] // ExpedienteDetalle.doctor
+  archivosCreados  ExpedienteArchivo[] // ExpedienteArchivo.creadoPor
+  citas            Cita[]              // Citas como doctor
+}
+
+enum Puesto {
+  DOCTOR
+  RECEPCIONISTA
+  ADMINISTRADOR
+  OTRO
+}
+
+// ------------------ SERVICIO CLINICO ------------------
+model ServicioClinico {
+  id              Int              @id @default(autoincrement())
+  nombre          String
+  descripcion     String?
+  precio          Float
+  activo          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  citas           Cita[]           // Un servicio puede estar en muchas citas
+}
+
+// ------------------ EXPEDIENTE ------------------
+model Expediente {
+  id            Int      @id @default(autoincrement())
+  pacienteId    Int      @unique // Solo 1 expediente por paciente
+  paciente      Persona  @relation(fields: [pacienteId], references: [id])
+  doctorId      Int
+  doctor        Empleado @relation(fields: [doctorId], references: [id])
+
+  alergias      String?
+  enfermedades  String?
+  medicamentos  String?
+  observaciones String?
+
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  detalles      ExpedienteDetalle[]
+  archivos      ExpedienteArchivo[]
+}
+
+// ------------------ EXPEDIENTE DETALLE ------------------
+model ExpedienteDetalle {
+  id                Int       @id @default(autoincrement())
+  expedienteId      Int
+  expediente        Expediente @relation(fields: [expedienteId], references: [id])
+
+  fecha             DateTime
+  motivo            String?
+  diagnostico       String?
+  tratamiento       String?
+  planTratamiento   String?
+
+  doctorId          Int
+  doctor            Empleado  @relation(fields: [doctorId], references: [id])
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ------------------ EXPEDIENTE ARCHIVO ------------------
+model ExpedienteArchivo {
+  id               Int      @id @default(autoincrement())
+  expedienteId     Int
+  expediente       Expediente @relation(fields: [expedienteId], references: [id])
+
+  nombreArchivo    String 
+  filePath     String
+  storageName  String @unique
+
+  tipoArchivo      String? 
+  creadoPorId      Int
+  creadoPor        Empleado @relation(fields: [creadoPorId], references: [id])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ------------------ CITA ------------------
+model Cita {
+  id          Int          @id @default(autoincrement())
+  fecha       DateTime
+  estado      EstadoCita   @default(PENDIENTE)
+  pacienteId  Int
+  paciente    Persona      @relation(fields: [pacienteId], references: [id])
+  doctorId    Int
+  doctor      Empleado     @relation(fields: [doctorId], references: [id])
+  servicioId  Int
+  servicio    ServicioClinico @relation(fields: [servicioId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([fecha, doctorId]) // Un doctor solo puede tener una cita a la vez
+}
+
+enum EstadoCita {
+  PENDIENTE
+  COMPLETADA
+  CANCELADA
+}

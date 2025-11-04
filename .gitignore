@@ -2,6 +2,7 @@
 /dist
 /node_modules
 /build
+/keys/clinica-files-firebase-adminsdk-fbsvc-bae11eddaa.json
 
 # Logs
 logs
