@@ -7,7 +7,7 @@ import { ExpedienteArchivoService } from './expediente-archivo.service';
 @Module({
   imports: [ConfigModule.forRoot()],
   providers: [StorageService, FirebaseService, ExpedienteArchivoService],
-  // 🔑 ¡CLAVE! Exportar los servicios que otros módulos consumirán.
+  // ¡CLAVE! Exportar los servicios que otros módulos consumirán.
   exports: [StorageService, ExpedienteArchivoService] 
 })
 export class FirebaseModule {}

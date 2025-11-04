@@ -9,7 +9,7 @@ export class ExpedienteArchivoService {
   constructor(private prisma: PrismaService) {}
 
   async validateFks(expedienteId: number, creadoPorId: number): Promise<void> {
-    // 1. 🔍 Validar existencia del Expediente
+    // 1. Validar existencia del Expediente
     const expediente = await this.prisma.expediente.findUnique({
       where: { id: expedienteId },
       select: { id: true }
@@ -18,7 +18,7 @@ export class ExpedienteArchivoService {
       throw new NotFoundException(`Expediente con ID ${expedienteId} no encontrado. No se puede iniciar la subida.`);
     }
 
-    // 2. 🔍 Validar existencia del Empleado (Creador)
+    // 2. Validar existencia del Empleado (Creador)
     const empleado = await this.prisma.empleado.findUnique({
       where: { id: creadoPorId },
       select: { id: true }
@@ -29,7 +29,7 @@ export class ExpedienteArchivoService {
 }
 
   // ======================================================================
-  // 🔑 C: Crear y guardar los metadatos CON VALIDACIÓN DE EXISTENCIA
+  // C: Crear y guardar los metadatos CON VALIDACIÓN DE EXISTENCIA
   // ======================================================================
   async create(data: CreateExpedienteArchivoDto): Promise<ExpedienteArchivo> {
     const { expedienteId, creadoPorId } = data;
@@ -37,7 +37,7 @@ export class ExpedienteArchivoService {
   }
 
   // ======================================================================
-  // 🔑 R, R, D: Métodos de Lectura y Eliminación (se mantienen)
+  // R, R, D: Métodos de Lectura y Eliminación (se mantienen)
   // ======================================================================
   
   async findByExpediente(expedienteId: number): Promise<ExpedienteArchivo[]> {

@@ -10,7 +10,7 @@ export class FirebaseService implements OnModuleInit {
   private bucket: Bucket; 
 
   onModuleInit() {
-    // 🔑 CORRECCIÓN: Usar process.cwd() para la ruta raíz
+    // CORRECCIÓN: Usar process.cwd() para la ruta raíz
     const serviceAccountPath = path.join(
       process.cwd(), 
       'keys', 
@@ -28,7 +28,7 @@ export class FirebaseService implements OnModuleInit {
     console.log('Firebase Admin SDK inicializado.');
   }
 
-  // 🔑 ¡MÉTODO FALTANTE REINSERTADO!
+  // ¡MÉTODO FALTANTE REINSERTADO!
   getBucket(): Bucket {
     return this.bucket;
   }
