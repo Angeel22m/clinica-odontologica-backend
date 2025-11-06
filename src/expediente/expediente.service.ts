@@ -4,9 +4,6 @@ import { UpdateExpedienteDto } from './dto/update-expediente.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
-
-
-
 const expedienteInclude = {
       paciente: {
         select: {
@@ -101,21 +98,71 @@ async create(createExpedienteDto: CreateExpedienteDto) {
 
 
   async update(id: number, updateExpedienteDto: UpdateExpedienteDto) {
-    try {
-      return await this.prisma.expediente.update({
-        where: { id },
-        data: updateExpedienteDto,
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(`No se encontró el expediente con ID ${id}`);
-      }
-      throw error;
+        // 1. Verificar si el expediente existe
+        const expedienteToUpdate = await this.prisma.expediente.findUnique({
+            where: { id },
+        });
+
+        if (!expedienteToUpdate) {
+            throw new NotFoundException(`No se encontró el expediente con ID ${id}`);
+        }
+
+        // 2. Validar pacienteId si se intenta modificar (Debe existir y mantener unicidad)
+        if (updateExpedienteDto.pacienteId) {
+            // A. Verificar existencia de la Persona (Clave Foránea)
+            const personaExists = await this.prisma.persona.findUnique({
+                where: { id: updateExpedienteDto.pacienteId },
+            });
+            if (!personaExists) {
+                throw new BadRequestException(
+                    `El ID de paciente ${updateExpedienteDto.pacienteId} no corresponde a una persona existente.`,
+                );
+            }
+
+            // B. Verificar Unicidad: Un paciente solo puede tener UN expediente.
+            // Solo verificamos si el ID es diferente al que ya tiene
+            if (updateExpedienteDto.pacienteId !== expedienteToUpdate.pacienteId) {
+                const existingExpediente = await this.prisma.expediente.findUnique({
+                    where: { pacienteId: updateExpedienteDto.pacienteId },
+                });
+                if (existingExpediente) {
+                    throw new BadRequestException(
+                        `Ya existe un expediente para el paciente con ID ${updateExpedienteDto.pacienteId}. No se puede asignar a este expediente.`,
+                    );
+                }
+            }
+        }
+
+        // 3. Validar doctorId si se intenta modificar (Debe ser un Doctor válido)
+        if (updateExpedienteDto.doctorId) {
+            const doctorExists = await this.prisma.empleado.findUnique({
+                where: { id: updateExpedienteDto.doctorId },
+                select: { id: true, puesto: true },
+            });
+            
+            if (!doctorExists || doctorExists.puesto !== 'DOCTOR') {
+                throw new BadRequestException(
+                    `El ID de doctor ${updateExpedienteDto.doctorId} no corresponde a un Empleado con puesto 'DOCTOR'.`,
+                );
+            }
+        }
+
+        // 4. Intentar actualizar el expediente
+        try {
+            const updatedExpediente = await this.prisma.expediente.update({
+                where: { id },
+                data: updateExpedienteDto,
+                include: expedienteInclude, // Devolvemos el expediente actualizado con detalles
+            });
+            return updatedExpediente;
+        } catch (error) {
+            // Manejo de errores inesperados (p. ej., problemas de conexión con DB)
+            console.error('Error inesperado al actualizar expediente:', error);
+            throw new InternalServerErrorException(
+                'Ocurrió un error desconocido al intentar actualizar el expediente.',
+            );
+        }
     }
-  }
 
   async remove(id: number) {
     try {

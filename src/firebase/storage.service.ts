@@ -59,7 +59,7 @@ export class StorageService {
                     // 3. Generar URL Firmada (TEMPORAL) para la respuesta inmediata al POST
                     const urlConfig = {
                         action: 'read' as const,
-                        expires: Date.now() + 1000 * 60 * 60, // 1 hora
+                        expires: Date.now() + 1000 * 60 * 5 , // 5 minutos
                     };
                     const [signedUrl] = await fileUpload.getSignedUrl(urlConfig);
                     
@@ -108,7 +108,7 @@ export class StorageService {
         const [url] = await file.getSignedUrl({
             action: 'read',
             // expire en 60 seconds
-            expires: Date.now() + 3000 // 
+            expires: Date.now() + 1000 * 60 * 5 // 5 minutos
         });
         
         return url;

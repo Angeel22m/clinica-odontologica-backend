@@ -1,4 +1,4 @@
-name: Build and Push Backend Docker Image
+name: CI/CD Backend - Test, Build, and Deploy
 
 on:
   push:
@@ -6,8 +6,41 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  ## ----------------------------------
+  ## 1. JOB DE TESTING (DEBE PASAR PRIMERO)
+  ## ----------------------------------
+  test:
+    name: Ejecutar Tests Unitarios
     runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js 22.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22.x 
+
+      - name: Instalar dependencias
+        # npm ci es más rápido y seguro para entornos de CI
+        run: npm ci
+
+      - name: Correr Tests Unitarios
+        run: npm run test
+
+  ## ----------------------------------
+  ## 2. JOB DE CONSTRUCCIÓN Y DESPLIEGUE (Solo si el testing es exitoso)
+  ## ----------------------------------
+  build_and_deploy:
+    name: Construir y Desplegar Imagen
+    # REGLA DE DEPENDENCIA: Este job solo corre si 'test' pasó.
+    needs: test 
+    runs-on: ubuntu-latest
+    
+    env:
+      IMAGE_NAME: angeel22m/clinica-backend
+      PORT: 3000
 
     steps:
       - name: Checkout repository
@@ -22,6 +55,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # --- CONSTRUIR Y SUBIR IMAGEN ---
       - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
@@ -29,10 +63,26 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            angeel22m/clinica-backend:latest
-            angeel22m/clinica-backend:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
           
-          # CORRECCIÓN CLAVE: Pasa el secret de la DB como argumento de construcción
-          # Asegúrate de que este secret (DATABASE_URL) contenga una URL de DB válida.
           build-args: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+
+      # --- DESPLIEGUE CONCEPTUAL ---
+      - name: Run Image with Secrets (Conceptual Deployment)
+        run: |
+          echo "Simulando la detención y eliminación de versiones anteriores..."
+          docker stop clinica-backend-app || true
+          docker rm clinica-backend-app || true
+          
+          echo "Iniciando contenedor con variables de entorno (Secrets)..."
+          
+          # El comando 'docker run' pasa los Secrets como variables de entorno (-e)
+          docker run -d --name clinica-backend-app \
+            -p ${{ env.PORT }}:${{ env.PORT }} \
+            -e NODE_ENV=production \
+            -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
+            -e FIREBASE_SERVICE_ACCOUNT_KEY='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}' \
+            -e FIREBASE_STORAGE_BUCKET='${{ secrets.FIREBASE_STORAGE_BUCKET }}' \
+            ${{ env.IMAGE_NAME }}:latest

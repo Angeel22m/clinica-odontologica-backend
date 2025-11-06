@@ -1,16 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   NotFoundException,
-  BadRequestException,
   InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ExpedienteService } from './expediente.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
+import { UpdateExpedienteDto } from './dto/update-expediente.dto';
 import { Prisma } from '@prisma/client';
 
-// 1. Definir el Mock para PrismaService
-// Simulamos todos los modelos y métodos utilizados en el servicio.
+// --- MOCKS DE DATOS ---
+const mockExpediente = {
+  id: 1,
+  pacienteId: 101,
+  doctorId: 201,
+  fechaCreacion: new Date(),
+  // Simular la inclusión (solo para findAll/findOne/update)
+  paciente: { nombre: 'Juan', apellido: 'Perez' },
+  doctor: { persona: { nombre: 'Dr.', apellido: 'García' } },
+};
+
+const mockCreateExpedienteDto: CreateExpedienteDto = {
+  pacienteId: 101,
+  doctorId: 201,
+};
+
+const mockDoctor = { id: 201, puesto: 'DOCTOR' };
+const mockPersona = { id: 101, nombre: 'Juan', apellido: 'Perez' };
+
+// --- MOCK DE PRISMA ---
 const mockPrismaService = {
   persona: {
     findUnique: jest.fn(),
@@ -20,7 +39,6 @@ const mockPrismaService = {
   },
   expediente: {
     findUnique: jest.fn(),
-    findFirst: jest.fn(), // Aunque no se usa, lo mantenemos por consistencia
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -28,7 +46,7 @@ const mockPrismaService = {
   },
   expedienteDetalle: {
     findMany: jest.fn(),
-  },
+  }
 };
 
 describe('ExpedienteService', () => {
@@ -36,16 +54,15 @@ describe('ExpedienteService', () => {
   let prisma: typeof mockPrismaService;
 
   beforeEach(async () => {
-    // Limpiamos los mocks antes de cada test para asegurar el aislamiento
+    // Limpiamos los mocks antes de cada test para asegurar aislamiento
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExpedienteService,
         {
-          // Sustituimos el PrismaService real por nuestro mock
           provide: PrismaService,
-          useValue: mockPrismaService,
+          useValue: mockPrismaService, // Usamos el objeto mock
         },
       ],
     }).compile();
@@ -58,184 +75,235 @@ describe('ExpedienteService', () => {
     expect(service).toBeDefined();
   });
 
-  // --- PRUEBAS PARA create(createExpedienteDto) ---
+  // ----------------------------------------------------
+  // PRUEBAS para create()
+  // ----------------------------------------------------
   describe('create', () => {
-    const createDto: CreateExpedienteDto = {
-      pacienteId: 1,
-      doctorId: 10,
-      alergias: 'Ninguna',
-      enfermedades: 'Ninguna',
-    };
-    const mockExpedienteCreado = { id: 100, ...createDto };
+    it('debe crear un expediente exitosamente', async () => {
+      // Configurar Mocks para las 3 validaciones:
+      prisma.persona.findUnique.mockResolvedValue(mockPersona); // 1. Persona existe
+      prisma.expediente.findUnique.mockResolvedValue(null);    // 2. Expediente NO existe
+      prisma.empleado.findUnique.mockResolvedValue(mockDoctor); // 3. Doctor existe y es 'DOCTOR'
+      prisma.expediente.create.mockResolvedValue(mockExpediente); // 4. Creación exitosa
 
-    // Caso de Éxito
-    it('debe crear el expediente si todas las validaciones son exitosas', async () => {
-      // Mocks: 1. Paciente existe
-      prisma.persona.findUnique.mockResolvedValue({ id: 1 });
-      // Mocks: 2. Expediente no existe
-      prisma.expediente.findUnique.mockResolvedValue(null);
-      // Mocks: 3. Doctor existe y es DOCTOR
-      prisma.empleado.findUnique.mockResolvedValue({ id: 10, puesto: 'DOCTOR' });
-      // Mocks: 4. Creación exitosa
-      prisma.expediente.create.mockResolvedValue(mockExpedienteCreado);
-
-      const result = await service.create(createDto);
-
-      expect(result).toEqual(mockExpedienteCreado);
-      expect(prisma.expediente.create).toHaveBeenCalledWith({ data: createDto });
+      const result = await service.create(mockCreateExpedienteDto);
+      
+      expect(result).toEqual(mockExpediente);
+      expect(prisma.expediente.create).toHaveBeenCalledWith({
+        data: mockCreateExpedienteDto,
+      });
     });
 
-    // Validaciones de Claves Foráneas (Excepciones 404)
-    it('debe lanzar NotFoundException si el pacienteId no existe', async () => {
-      // Mock: Paciente no existe
+    it('debe lanzar NotFoundException si el pacienteId NO existe', async () => {
+      // 1. Persona NO existe
       prisma.persona.findUnique.mockResolvedValue(null);
-
-      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
-      expect(prisma.expediente.create).not.toHaveBeenCalled();
+      
+      await expect(service.create(mockCreateExpedienteDto)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.expediente.findUnique).not.toHaveBeenCalled(); // No debe seguir a la sig. validación
     });
 
-    it('debe lanzar NotFoundException si el doctorId no existe o no es un DOCTOR', async () => {
-      // Mock: Paciente existe
-      prisma.persona.findUnique.mockResolvedValue({ id: 1 });
-      // Mock: Expediente no existe
+    it('debe lanzar BadRequestException si el expediente ya existe para ese paciente', async () => {
+      // 1. Persona existe
+      prisma.persona.findUnique.mockResolvedValue(mockPersona);
+      // 2. Expediente YA existe
+      prisma.expediente.findUnique.mockResolvedValue(mockExpediente);
+
+      await expect(service.create(mockCreateExpedienteDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.empleado.findUnique).not.toHaveBeenCalled(); // No debe seguir a la sig. validación
+    });
+    
+    it('debe lanzar NotFoundException si el doctorId NO existe o no es DOCTOR', async () => {
+      // 1. Persona existe
+      prisma.persona.findUnique.mockResolvedValue(mockPersona);
+      // 2. Expediente NO existe
       prisma.expediente.findUnique.mockResolvedValue(null);
+      // 3. Doctor NO existe (o tiene otro puesto como 'ASISTENTE')
+      prisma.empleado.findUnique.mockResolvedValue({ id: 201, puesto: 'ASISTENTE' });
 
-      // Simula que el Doctor no existe
-      prisma.empleado.findUnique.mockResolvedValue(null);
-      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
-
-      // Simula que existe pero NO es DOCTOR
-      prisma.empleado.findUnique.mockResolvedValue({ id: 10, puesto: 'RECEPCIONISTA' });
-      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
-
+      await expect(service.create(mockCreateExpedienteDto)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(prisma.expediente.create).not.toHaveBeenCalled();
     });
 
-    // Validación de Unicidad (Excepción 400)
-    it('debe lanzar BadRequestException si el expediente para el paciente ya existe', async () => {
-      // Mocks: 1. Paciente existe
-      prisma.persona.findUnique.mockResolvedValue({ id: 1 });
-      // Mocks: 2. Expediente YA existe
-      prisma.expediente.findUnique.mockResolvedValue({ id: 50 });
-
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
-      expect(prisma.expediente.create).not.toHaveBeenCalled();
-    });
-
-    // Manejo de Errores Genéricos (Excepción 500)
-    it('debe lanzar InternalServerErrorException si la creación falla inesperadamente', async () => {
-      // Mocks: Todos los checks OK
-      prisma.persona.findUnique.mockResolvedValue({ id: 1 });
+    it('debe lanzar InternalServerErrorException por un error desconocido de Prisma', async () => {
+      // 1. Pasan las 3 validaciones
+      prisma.persona.findUnique.mockResolvedValue(mockPersona);
       prisma.expediente.findUnique.mockResolvedValue(null);
-      prisma.empleado.findUnique.mockResolvedValue({ id: 10, puesto: 'DOCTOR' });
-      // Mock: La creación falla
-      prisma.expediente.create.mockRejectedValue(new Error('Simulated DB connection error'));
+      prisma.empleado.findUnique.mockResolvedValue(mockDoctor);
+      
+      // 4. Fallo en la creación
+      prisma.expediente.create.mockRejectedValue(new Error('DB connection failed'));
 
-      await expect(service.create(createDto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.create(mockCreateExpedienteDto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 
-  // --- PRUEBAS PARA findOne(id) ---
+  // ----------------------------------------------------
+  // PRUEBAS para findOne()
+  // ----------------------------------------------------
   describe('findOne', () => {
-    const mockExpediente = { id: 1, alergias: 'Ninguna', include: { /* ... */ } };
-
-    it('debe devolver el expediente si es encontrado', async () => {
+    it('debe devolver el expediente si se encuentra', async () => {
       prisma.expediente.findUnique.mockResolvedValue(mockExpediente);
 
       const result = await service.findOne(1);
       
       expect(result).toEqual(mockExpediente);
-      expect(prisma.expediente.findUnique).toHaveBeenCalledWith({
-        where: { id: 1 },
-        include: expect.anything(),
-      });
+      expect(prisma.expediente.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 1 } })
+      );
     });
-
+    
     it('debe lanzar NotFoundException si el expediente no existe', async () => {
       prisma.expediente.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // --- PRUEBAS PARA update(id, dto) ---
-  describe('update', () => {
-    const updateDto = { alergias: 'Polen' };
-    const mockExpedienteActualizado = { id: 1, alergias: 'Polen' };
-
-    it('debe actualizar el expediente si es encontrado', async () => {
-      prisma.expediente.update.mockResolvedValue(mockExpedienteActualizado);
-
-      const result = await service.update(1, updateDto);
-
-      expect(result).toEqual(mockExpedienteActualizado);
-      expect(prisma.expediente.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: updateDto,
-      });
-    });
-
-    it('debe lanzar NotFoundException si el expediente no existe (Prisma P2025)', async () => {
-      // Simulamos el error P2025 que ocurre cuando se intenta actualizar un registro que no existe
-      const notFoundError = new Prisma.PrismaClientKnownRequestError('Record to update not found', {
-        code: 'P2025',
-        clientVersion: 'test',
-      });
-      prisma.expediente.update.mockRejectedValue(notFoundError);
-
-      await expect(service.update(999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(99)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
   
-  // --- PRUEBAS PARA remove(id) ---
-  describe('remove', () => {
-    it('debe eliminar el expediente y devolver el mensaje de éxito', async () => {
-      // Mock: delete se resuelve (éxito en la eliminación)
-      prisma.expediente.delete.mockResolvedValue({ id: 1 }); 
+  // ----------------------------------------------------
+  // PRUEBAS para update()
+  // ----------------------------------------------------
+  describe('update', () => {
+    const updateDto: UpdateExpedienteDto = { doctorId: 300 };
+    const updateDtoPaciente: UpdateExpedienteDto = { pacienteId: 102 };
+    const originalExpediente = { ...mockExpediente, pacienteId: 101 };
+    
+    it('debe actualizar el expediente exitosamente (solo doctorId)', async () => {
+      // 1. Expediente original existe
+      prisma.expediente.findUnique.mockResolvedValue(originalExpediente);
+      // 2. Doctor nuevo existe
+      prisma.empleado.findUnique.mockResolvedValue({ id: 300, puesto: 'DOCTOR' });
+      // 3. Update exitoso
+      prisma.expediente.update.mockResolvedValue({ ...originalExpediente, ...updateDto });
 
-      const result = await service.remove(1);
-
-      expect(result).toEqual({ message: 'Expediente eliminado correctamente' });
-      expect(prisma.expediente.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      const result = await service.update(1, updateDto);
+      
+      expect(result.doctorId).toBe(300);
+      expect(prisma.expediente.update).toHaveBeenCalled();
     });
 
-    it('debe lanzar NotFoundException si el expediente no existe (Prisma P2025)', async () => {
-      const notFoundError = new Prisma.PrismaClientKnownRequestError('Record to delete not found', {
+    it('debe lanzar NotFoundException si el expediente a actualizar no existe', async () => {
+      prisma.expediente.findUnique.mockResolvedValue(null);
+      
+      await expect(service.update(99, updateDto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe lanzar BadRequestException si el nuevo pacienteId NO existe (clave foránea)', async () => {
+      // 1. Expediente original existe
+      prisma.expediente.findUnique.mockResolvedValue(originalExpediente);
+      // 2. Persona NO existe
+      prisma.persona.findUnique.mockResolvedValue(null);
+
+      await expect(service.update(1, updateDtoPaciente)).rejects.toThrow(BadRequestException);
+      expect(prisma.expediente.update).not.toHaveBeenCalled();
+    });
+
+    it('debe lanzar BadRequestException si el nuevo pacienteId YA tiene expediente', async () => {
+        // Mocking secuencial para las dos llamadas a prisma.expediente.findUnique:
+        
+        // 1. Primera llamada (Línea 104 del servicio): Verifica si el expediente 'id: 1' existe.
+        prisma.expediente.findUnique.mockResolvedValueOnce(originalExpediente);
+        
+        // 2. Mock: Persona existe (Paso 2.A)
+        prisma.persona.findUnique.mockResolvedValue({ id: 102 });
+
+        // 3. Segunda llamada (Línea 126 del servicio): Verifica si el 'pacienteId: 102' ya tiene otro expediente.
+        // Se espera que SÍ encuentre un expediente (id: 5) para lanzar el BadRequest.
+        prisma.expediente.findUnique.mockResolvedValueOnce({ id: 5, pacienteId: 102 });
+        
+        await expect(service.update(1, updateDtoPaciente)).rejects.toThrow(BadRequestException);
+        expect(prisma.expediente.update).not.toHaveBeenCalled();
+    });
+    
+    it('debe lanzar BadRequestException si el nuevo doctorId NO es DOCTOR', async () => {
+      // 1. Expediente original existe
+      prisma.expediente.findUnique.mockResolvedValue(originalExpediente);
+      // 2. Doctor existe, pero no es DOCTOR
+      prisma.empleado.findUnique.mockResolvedValue({ id: 300, puesto: 'ASISTENTE' });
+      
+      const updateDtoDoctor: UpdateExpedienteDto = { doctorId: 300 };
+      
+      await expect(service.update(1, updateDtoDoctor)).rejects.toThrow(BadRequestException);
+      expect(prisma.expediente.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ----------------------------------------------------
+  // PRUEBAS para remove()
+  // ----------------------------------------------------
+  describe('remove', () => {
+    it('debe eliminar el expediente y retornar mensaje de éxito', async () => {
+      // Simular eliminación exitosa
+      prisma.expediente.delete.mockResolvedValue(mockExpediente);
+
+      const result = await service.remove(1);
+      
+      expect(result).toEqual({ message: "Expediente eliminado correctamente" });
+      expect(prisma.expediente.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    });
+    
+    it('debe lanzar NotFoundException si el expediente a eliminar no existe (Prisma P2025)', async () => {
+      // Simular error P2025 (No se encontró el registro a eliminar)
+      const error = new Prisma.PrismaClientKnownRequestError('Record to delete does not exist.', {
         code: 'P2025',
         clientVersion: 'test',
       });
-      prisma.expediente.delete.mockRejectedValue(notFoundError);
+      prisma.expediente.delete.mockRejectedValue(error);
 
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(service.remove(99)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+    
+    it('debe lanzar el error original si no es P2025', async () => {
+      // Simular otro tipo de error (ej. conexión)
+      const genericError = new Error('Database connection failure');
+      prisma.expediente.delete.mockRejectedValue(genericError);
+
+      await expect(service.remove(1)).rejects.toThrow('Database connection failure');
     });
   });
-
-  // --- PRUEBAS PARA getHistorialPaciente(pacienteId) ---
+  
+  // ----------------------------------------------------
+  // PRUEBAS para getHistorialPaciente()
+  // ----------------------------------------------------
   describe('getHistorialPaciente', () => {
-    const pacienteId = 5;
     const mockHistorial = [
-      { fecha: new Date(), motivo: 'Control', doctor: { /* ... */ } },
-      { fecha: new Date(), motivo: 'Extracción', doctor: { /* ... */ } },
+      { id: 1, fecha: new Date(), diagnostico: 'Caries', doctor: { persona: { nombre: 'Dr.', apellido: 'García' } } },
+      { id: 2, fecha: new Date(), diagnostico: 'Limpieza', doctor: { persona: { nombre: 'Dr.', apellido: 'García' } } },
     ];
-
-    it('debe devolver el historial si hay registros', async () => {
+    
+    it('debe devolver el historial de detalles del paciente', async () => {
       prisma.expedienteDetalle.findMany.mockResolvedValue(mockHistorial);
 
-      const result = await service.getHistorialPaciente(pacienteId);
-
+      const result = await service.getHistorialPaciente(101);
+      
       expect(result).toEqual(mockHistorial);
-      expect(prisma.expedienteDetalle.findMany).toHaveBeenCalledWith({
-        where: { expediente: { pacienteId } },
-        orderBy: { fecha: 'desc' },
-        include: expect.anything(),
-      });
+      expect(prisma.expedienteDetalle.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ 
+            where: { expediente: { pacienteId: 101 } },
+            orderBy: { fecha: 'desc' }
+        })
+      );
     });
-
-    it('debe lanzar NotFoundException si no hay historial para el paciente', async () => {
-      // Mock: findMany devuelve un array vacío
+    
+    it('debe lanzar NotFoundException si el historial no tiene detalles (array vacío)', async () => {
       prisma.expedienteDetalle.findMany.mockResolvedValue([]);
 
-      await expect(service.getHistorialPaciente(pacienteId)).rejects.toThrow(NotFoundException);
+      await expect(service.getHistorialPaciente(999)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.expedienteDetalle.findMany).toHaveBeenCalled();
     });
   });
+
 });

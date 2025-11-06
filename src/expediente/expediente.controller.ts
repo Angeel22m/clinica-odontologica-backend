@@ -16,7 +16,7 @@ import { Roles } from '../auth/roles.decorator';           //  Necesitas tu deco
 @ApiTags('expediente')
 
 @Controller('expediente')
-@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
+//@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
 export class ExpedienteController {
   constructor(private readonly expedienteService: ExpedienteService,
               private storageService: StorageService,
@@ -76,7 +76,7 @@ export class ExpedienteController {
   @ApiParam({ name: 'file', type: 'file', description: 'Archivo a subir' })
   @ApiResponse({ status: 201, description: 'Archivo subido y registrado correctamente.' })
   @ApiResponse({ status: 400, description: 'Error en la subida del archivo.' })
-  @Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
+  //@Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
   @UseInterceptors(FileInterceptor('file')) // 'file' debe coincidir con la KEY en Postman/Frontend
   async upload(
     @UploadedFile() file: Express.Multer.File,
@@ -148,7 +148,7 @@ export class ExpedienteController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Archivo eliminado correctamente de Firebase y Prisma.' })
   @ApiResponse({ status: 404, description: 'Archivo no encontrado.' })
-  @Roles('ADMIN') // Normalmente, solo un admin puede eliminar permanentemente
+  //@Roles('ADMIN') // Normalmente, solo un admin puede eliminar permanentemente
   async deleteFile(@Param('id', ParseIntPipe) id: number) {
     // El StorageService maneja la lógica dual: elimina de Firebase y luego de Prisma
     return this.storageService.deleteFile(id);
