@@ -5,7 +5,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateExpedienteDto extends PartialType(CreateExpedienteDto) {
 
-      @ApiPropertyOptional({ description: 'ID del paciente' })
+  @ApiPropertyOptional({ description: 'ID del paciente' })
   pacienteId?: number;
 
   @ApiPropertyOptional({ description: 'ID del doctor' })

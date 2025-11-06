@@ -99,7 +99,6 @@ async create(createExpedienteDto: CreateExpedienteDto) {
 }
 
 
-
   async update(id: number, updateExpedienteDto: UpdateExpedienteDto) {
     try {
       return await this.prisma.expediente.update({
