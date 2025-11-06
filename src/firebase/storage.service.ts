@@ -21,7 +21,7 @@ export class StorageService {
     ) {}
 
     // =======================================================================================
-    // 🔑 1. MÉTODO DE SUBIDA (POST)
+    // 1. MÉTODO DE SUBIDA (POST)
     // =======================================================================================
     async uploadFile(
         file: Express.Multer.File, 
@@ -59,7 +59,7 @@ export class StorageService {
                     // 3. Generar URL Firmada (TEMPORAL) para la respuesta inmediata al POST
                     const urlConfig = {
                         action: 'read' as const,
-                        expires: Date.now() + 1000 * 60 * 60, // 1 hora
+                        expires: Date.now() + 1000 * 60 * 5 , // 5 minutos
                     };
                     const [signedUrl] = await fileUpload.getSignedUrl(urlConfig);
                     
@@ -83,7 +83,7 @@ export class StorageService {
                 } catch (error) {
                     console.error('Error al guardar registro o generar URL:', error);
                     
-                    // 🔑 SOLUCIÓN: Verifica si es un error HTTP controlado (404, etc.)
+                    // SOLUCIÓN: Verifica si es un error HTTP controlado (404, etc.)
                     // Asegúrate de importar HttpException en la parte superior del archivo.
                     if (error instanceof HttpException) {
                         // Relanza el error 404 (o 400), que es lo que debe ver Postman
@@ -98,7 +98,7 @@ export class StorageService {
     }
 
     // =======================================================================================
-    // 🔑 2. MÉTODO PARA GENERAR URL FIRMADA (GET)
+    // 2. MÉTODO PARA GENERAR URL FIRMADA (GET)
     // =======================================================================================
     async generateSignedUrl(filePath: string): Promise<string> {
         const bucket = this.firebaseService.getBucket();
@@ -108,14 +108,14 @@ export class StorageService {
         const [url] = await file.getSignedUrl({
             action: 'read',
             // expire en 60 seconds
-            expires: Date.now() + 3000 // 
+            expires: Date.now() + 1000 * 60 * 5 // 5 minutos
         });
         
         return url;
     }
 
     // =======================================================================================
-    // 🔑 3. MÉTODO DE ELIMINACIÓN (DELETE)
+    // 3. MÉTODO DE ELIMINACIÓN (DELETE)
     // =======================================================================================
     async deleteFile(id: number): Promise<{ success: boolean, message: string }> {
         // 1. Obtener la metadata para saber qué eliminar de la nube

@@ -10,7 +10,7 @@ import {
 import { ServiciosService } from './servicios.service';
 import { CreateServiciosDto } from './dto/create_servicios.dto';
 import { UpdateServiciosDto } from './dto/update_servicios.dto';
-import { ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiTags, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ParseIntPipe } from '@nestjs/common/pipes/parse-int.pipe';
 
 @ApiTags('servicios')
@@ -31,6 +31,7 @@ export class ServiciosController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un servicio por ID.' })
+  @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Servicio obtenido correctamente.' })
   @ApiResponse({ status: 404, description: 'Servicio no encontrado.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -39,6 +40,7 @@ export class ServiciosController {
 
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo servicio.' })
+  @ApiParam({ name: 'body', type: CreateServiciosDto })
   @ApiResponse({ status: 201, description: 'Servicio creado correctamente.' })
   @ApiResponse({ status: 400, description: 'Datos inválidos.' })
   create(@Body() CreateServiciosDto: CreateServiciosDto) {
@@ -47,6 +49,8 @@ export class ServiciosController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar un servicio' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiParam({ name: 'body', type: UpdateServiciosDto })
   @ApiResponse({
     status: 200,
     description: 'Servicio actualizado correctamente.',
@@ -61,6 +65,7 @@ export class ServiciosController {
   }
 
   @Delete(':id')
+  @ApiParam({ name: 'id', type: Number })
   @ApiOperation({ summary: 'Eliminar un servicio' })
   @ApiResponse({
     status: 200,

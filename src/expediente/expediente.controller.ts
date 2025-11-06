@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseInterceptors, UploadedFile,BadRequestException,Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseInterceptors, UploadedFile,BadRequestException,Req,UseGuards } from '@nestjs/common';
 import { ExpedienteService } from './expediente.service';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
@@ -8,14 +8,15 @@ import { HistorialDetalleDto } from './dto/historial-expediente.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from '../firebase/storage.service';
 import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service';
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // 🔑 Necesitas tu guard de autenticación
-// import { RolesGuard } from '../auth/roles.guard';         // 🔑 Necesitas tu guard de roles
-// import { Roles } from '../auth/roles.decorator';           // 🔑 Necesitas tu decorador @Roles
+import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // 🔑 Necesitas tu guard de autenticación
+import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
+import { Roles } from '../auth/roles.decorator';           //  Necesitas tu decorador @Roles
 
 
 @ApiTags('expediente')
 
 @Controller('expediente')
+//@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
 export class ExpedienteController {
   constructor(private readonly expedienteService: ExpedienteService,
               private storageService: StorageService,
@@ -72,7 +73,10 @@ export class ExpedienteController {
   }
 
   @Post('archivo/upload')
-  // @Roles('admin', 'medico') // 🔑 Define qué roles pueden subir
+  @ApiParam({ name: 'file', type: 'file', description: 'Archivo a subir' })
+  @ApiResponse({ status: 201, description: 'Archivo subido y registrado correctamente.' })
+  @ApiResponse({ status: 400, description: 'Error en la subida del archivo.' })
+  //@Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
   @UseInterceptors(FileInterceptor('file')) // 'file' debe coincidir con la KEY en Postman/Frontend
   async upload(
     @UploadedFile() file: Express.Multer.File,
@@ -105,7 +109,10 @@ export class ExpedienteController {
   // URL: GET /expediente-archivos/expediente/123
   // =======================================================================
   @Get('archivo/:expedienteId')
-  // @Roles('admin', 'medico', 'enfermero') // 🔑 Define qué roles pueden ver
+  @ApiParam({ name: 'expedienteId', type: Number })
+  @ApiResponse({ status: 200, description: 'Archivos obtenidos correctamente con URLs temporales.' })
+  @ApiResponse({ status: 404, description: 'No se encontraron archivos para este expediente.' })
+  //@Roles('ADMIN', 'DOCTOR', '') // TODOS los roles que puedan ver archivos
   async getFilesByExpediente(
     @Param('expedienteId', ParseIntPipe) expedienteId: number,
   ) {
@@ -125,7 +132,7 @@ export class ExpedienteController {
         // Retornamos el objeto, añadiendo la URL temporal (que no se guardará en la DB)
         return {
           ...archivo,
-          signedUrl: signedUrl, // ⬅️ URL válida solo por 1 hora (o lo que hayas configurado)
+          signedUrl: signedUrl, // URL válida solo por 1 hora (o lo que hayas configurado)
         };
       }),
     );
@@ -138,7 +145,10 @@ export class ExpedienteController {
   // URL: DELETE /expediente-archivos/5
   // =======================================================================
   @Delete('archivo/:id')
-  // @Roles('admin') // 🔑 Normalmente, solo un admin puede eliminar permanentemente
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Archivo eliminado correctamente de Firebase y Prisma.' })
+  @ApiResponse({ status: 404, description: 'Archivo no encontrado.' })
+  //@Roles('ADMIN') // Normalmente, solo un admin puede eliminar permanentemente
   async deleteFile(@Param('id', ParseIntPipe) id: number) {
     // El StorageService maneja la lógica dual: elimina de Firebase y luego de Prisma
     return this.storageService.deleteFile(id);

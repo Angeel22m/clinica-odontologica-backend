@@ -1,26 +1,26 @@
 # ------------------ ETAPA 1: Construcción (Builder) ------------------
 FROM node:22-alpine AS builder
 
-# 1. REINTRODUCIMOS ARG para recibir la URL desde GitHub Actions o el comando 'docker build'.
-# Este es el método correcto para inyectar secretos que no están en el repositorio.
+# Recibe la URL de la base de datos como argumento de construcción
 ARG DATABASE_URL
 
 WORKDIR /app
 
-# Copia e instala dependencias
+# Copia e instala dependencias usando npm ci (más rápido y consistente con lock file)
 COPY package*.json ./
-RUN npm install
+COPY package-lock.json ./  # <--- Aseguramos la copia del lock file
+RUN npm ci                  # <--- Usamos npm ci
 
-# 2. Copia el resto del código fuente (ya no copiamos .env)
+# Copia el resto del código fuente
 COPY . . 
 
-# 3. Hacemos el ARG disponible como ENV para que 'prisma generate' lo pueda leer.
+# Hace que el ARG sea accesible como ENV para la generación de Prisma
 ENV DATABASE_URL=${DATABASE_URL}
 
-# 4. Genera el cliente de Prisma (Ahora usa la variable inyectada via ARG)
+# Genera el cliente de Prisma
 RUN npx prisma generate
 
-# 5. Construye la aplicación NestJS
+# Construye la aplicación NestJS
 RUN npm run build
 
 # ------------------ ETAPA 2: Producción (Runner) ------------------
@@ -28,24 +28,19 @@ FROM node:22-alpine AS runner
 
 # Configura la variable de entorno de producción
 ENV NODE_ENV production
-
-# La ENV vacía se mantiene. Esto le dice a la aplicación que debe esperar
-# la URL de producción en runtime, y no filtra ningún valor de ARG anterior.
-ENV DATABASE_URL=""
-
 WORKDIR /usr/src/app
 
 # Copia solo los archivos esenciales de la etapa de construcción:
 COPY --from=builder /app/package*.json ./
+# Copia node_modules completo de la etapa anterior (donde se instaló con npm ci)
+COPY --from=builder /app/node_modules ./node_modules/ 
 COPY --from=builder /app/dist ./dist/
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma/
+# Aseguramos que se copien los archivos de Prisma generados
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma/ 
+COPY --from=builder /app/prisma ./prisma/
 
-# Instala SÓLO las dependencias de producción
-RUN npm install --omit=dev
-
-# Expone el puerto (3000 por defecto)
+# Expone el puerto
 EXPOSE 3000
 
-# Comando para ejecutar la aplicación con la ruta corregida
+# Comando para ejecutar la aplicación
 CMD [ "node", "dist/src/main.js" ]
-

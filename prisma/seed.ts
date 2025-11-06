@@ -15,7 +15,7 @@ async function main() {
   const usersData: Prisma.UserCreateManyInput[] = []; 
   const citasData: Prisma.CitaCreateManyInput[] = []; 
   
-  // 1️⃣ Personas base (25 registros) - (No lo repito para ahorrar espacio, asume IDs 1-25)
+  // 1️ Personas base (25 registros) - (No lo repito para ahorrar espacio, asume IDs 1-25)
   // ... (Creación de personasData y prisma.persona.createMany) ...
   // [Suponiendo que el código de la sección 1 (Personas) está aquí]
 
@@ -60,11 +60,11 @@ async function main() {
     usersData.push({ correo: `c${i}@mail.com`, password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.CLIENTE, personaId: i });
   }
   // Empleados 
-  usersData.push({ correo: 'laura@doc.com', password: '123456', rol: Rol.DOCTOR, personaId: 21 });
-  usersData.push({ correo: 'miguel@doc.com', password: '123456', rol: Rol.DOCTOR, personaId: 22 });
-  usersData.push({ correo: 'claudia@recep.com', password: '123456', rol: Rol.RECEPCIONISTA, personaId: 23 });
-  usersData.push({ correo: 'roberto@admin.com', password: '123456', rol: Rol.ADMIN, personaId: 24 });
-  usersData.push({ correo: 'elena@doc.com', password: '123456', rol: Rol.DOCTOR, personaId: 25 });
+  usersData.push({ correo: 'laura@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 21 });
+  usersData.push({ correo: 'miguel@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 22 });
+  usersData.push({ correo: 'claudia@recep.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.RECEPCIONISTA, personaId: 23 });
+  usersData.push({ correo: 'roberto@admin.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.ADMIN, personaId: 24 });
+  usersData.push({ correo: 'elena@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 25 });
   
   await prisma.user.createMany({ data: usersData });
   console.log(`✅ ${usersData.length} Usuarios creados`);
@@ -88,7 +88,7 @@ async function main() {
   console.log(`✅ ${empleadosCreados.length} Empleados creados. IDs de doctor reales: ${doctorIds.join(', ')}`);
 
 
-  // 4️⃣ Servicios clínicos (7 registros)
+  // 4️ Servicios clínicos (7 registros)
   // ... (El código de la sección 4 (Servicios) permanece igual) ...
   const serviciosData = [
     { nombre: 'Limpieza dental', descripcion: 'Limpieza profesional básica', precio: 500 },
@@ -104,13 +104,13 @@ async function main() {
   const numServicios = serviciosData.length;
 
 
-  // 5️⃣ Expedientes (20 registros, uno por cliente) - ¡CORRECCIÓN APLICADA AQUÍ!
+  // 5️ Expedientes (20 registros, uno por cliente) - ¡CORRECCIÓN APLICADA AQUÍ!
   // Ahora usamos la función getDoctorId que retorna los IDs reales de la tabla Empleado.
   for (let i = 1; i <= NUM_CLIENTES; i++) {
     const exp = await prisma.expediente.create({
       data: {
         pacienteId: i,
-        doctorId: getDoctorId(i), // 👈 ESTO YA USA LOS IDs REALES DEL EMPLEADO
+        doctorId: getDoctorId(i), //  ESTO YA USA LOS IDs REALES DEL EMPLEADO
         alergias: i % 5 === 0 ? 'Penicilina' : 'Ninguna',
         enfermedades: i % 4 === 0 ? 'Diabetes Tipo 2' : 'Ninguna conocida',
         medicamentos: i % 3 === 0 ? 'Ibuprofeno' : 'Ninguno',
@@ -124,7 +124,7 @@ async function main() {
   // ... (El resto del script para ExpedienteDetalle, Archivos y Citas permanece igual y usará los IDs de doctor corregidos) ...
   // El resto del código usa getDoctorId(), por lo que ahora funcionará correctamente.
 
-  // 6️⃣ Detalles de Expediente (40 registros, 2 detalles por expediente)
+  // 6️ Detalles de Expediente (40 registros, 2 detalles por expediente)
   for (let i = 0; i < expedientesCreados.length; i++) {
     const expedienteId = expedientesCreados[i].id;
     const doctor1 = getDoctorId(i);
@@ -158,7 +158,7 @@ async function main() {
   }
   console.log(`✅ ${expedientesCreados.length * 2} Detalles de expediente creados`);
 
-  // 7️⃣ Archivos de Expediente (20 archivos)
+  // 7️ Archivos de Expediente (20 archivos)
   for (let i = 0; i < expedientesCreados.length; i++) {
       const expedienteId = expedientesCreados[i].id;
       const creadoPorId = getDoctorId(i);
@@ -177,7 +177,7 @@ async function main() {
   console.log(`✅ ${expedientesCreados.length} Archivos de expediente creados`);
 
 
-  // 8️⃣ Citas (60 registros, variedad de estados y fechas)
+  // 8️ Citas (60 registros, variedad de estados y fechas)
 // ... (omito la inicialización de citasData) ...
 for (let i = 1; i <= NUM_CLIENTES; i++) {
   const doctor = getDoctorId(i);
