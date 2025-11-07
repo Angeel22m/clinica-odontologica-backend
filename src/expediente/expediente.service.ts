@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException,InternalServerErrorException,BadRequestException } from '@nestjs/common';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
+import {CreateExpedienteDetalleDto} from './dto/create-expdiente-detalle.dtp'
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { StorageService } from '../firebase/storage.service';
 
 const expedienteInclude = {
       paciente: {
@@ -22,10 +23,18 @@ const expedienteInclude = {
       },
     }
 
+
+
 @Injectable()
 export class ExpedienteService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService,
+              private storageService: StorageService
+  ) {}
 
+
+// ======================================================================
+// crea un nuevo expediente
+// ======================================================================
 async create(createExpedienteDto: CreateExpedienteDto) {
     
     // 1. Validar que la Persona exista (paciente)
@@ -48,7 +57,7 @@ async create(createExpedienteDto: CreateExpedienteDto) {
       );
     }
     
-    // 👈 NUEVA LÓGICA: Validar que el Doctor exista (Clave Foránea)
+    //Validar que el Doctor exista (Clave Foránea)
     const doctorExists = await this.prisma.empleado.findUnique({
         where: { id: createExpedienteDto.doctorId },
         select: { id: true, puesto: true } // Opcional: solo traer los IDs
@@ -83,20 +92,87 @@ async create(createExpedienteDto: CreateExpedienteDto) {
   }
 
  async findOne(id: number) {
+  // Buscar expediente con archivos y detalles
   const expediente = await this.prisma.expediente.findUnique({
     where: { id },
-    include: expedienteInclude,
+    include: {
+      archivos: {
+        select: { filePath: true, id: true, nombreArchivo: true, tipoArchivo: true }
+      },
+      detalles: true,
+      doctor: {
+        select: {
+          persona: {
+            select: { nombre: true, apellido: true }
+          }
+        }
+      },
+      paciente: {
+        select: { nombre: true, apellido: true }
+      }
+    }
   });
 
   if (!expediente) {
     throw new NotFoundException(`Expediente con ID ${id} no encontrado`);
   }
 
-  return expediente;
+  // Generar URLs firmadas para los archivos
+  const allFilePaths = expediente.archivos.map(a => a.filePath);
+  const signedUrls = await this.storageService.generateSignedUrls(allFilePaths);
+
+  // Mapear URLs firmadas a los archivos
+  const archivosConUrls = expediente.archivos.map((archivo, index) => ({
+    id: archivo.id,
+    url: signedUrls[index],
+    nombre: archivo.nombreArchivo,
+    type: archivo.tipoArchivo,
+  })).filter(a => a.url);
+
+  // Devolver expediente con archivos actualizados
+  return {
+    id: expediente.id,
+    nombrePaciente: `${expediente.paciente.nombre} ${expediente.paciente.apellido}`,
+    doctorNombre: `${expediente.doctor.persona.nombre} ${expediente.doctor.persona.apellido}`,
+    alergias: expediente.alergias,
+    enfermedades: expediente.enfermedades,
+    medicamentos: expediente.medicamentos,
+    observaciones: expediente.observaciones,
+    archivos: archivosConUrls,
+    detalles: expediente.detalles,
+  };
+}
+
+
+//===========================================================================
+// GET: OBTENER LOS EXPEDIENTES POR DOCTOR
+//===========================================================================
+async getExpedientesPorDoctor(id: number) {
+    const expedientes = await this.prisma.expediente.findMany({
+        where: { doctorId: id },
+        include:{ doctor: {
+        select: {
+          persona: {
+            select: { nombre: true, apellido: true }
+          }
+        }
+      },
+      paciente: {
+        select: { nombre: true, apellido: true }
+      }
+    }});
+
+    if (!expedientes || expedientes.length === 0) {
+        throw new NotFoundException('No tiene pacientes o expedientes asignados.');
+    }
+    return expedientes;
 }
 
 
 
+// ======================================================================
+// Actualizar un expediente por su id
+// ======================================================================
   async update(id: number, updateExpedienteDto: UpdateExpedienteDto) {
         // 1. Verificar si el expediente existe
         const expedienteToUpdate = await this.prisma.expediente.findUnique({
@@ -163,8 +239,11 @@ async create(createExpedienteDto: CreateExpedienteDto) {
             );
         }
     }
+// ======================================================================    
+// Eliminar un expediente por su id
+// ======================================================================
 
-  async remove(id: number) {
+ /* async remove(id: number) {
     try {
       await this.prisma.expediente.delete({
         where: { id },
@@ -182,6 +261,46 @@ async create(createExpedienteDto: CreateExpedienteDto) {
       throw error;
     }
   }
+    */
+
+  
+  async crearExpedienteDetalle(data: CreateExpedienteDetalleDto) {
+    // Verificar la existencia del Expediente (usando expedienteId)
+    const existeExpediente = await this.prisma.expediente.findUnique({
+      where: {
+        id: data.expedienteId, // Verifica el ID del expediente principal
+      },
+    });
+
+    if (!existeExpediente) {
+      throw new NotFoundException(
+        `El Expediente con ID ${data.expedienteId} no existe.`,
+      );
+    }
+    const existeDoctor = await this.prisma.empleado.findUnique({
+      where: {
+        id: data.doctorId,
+      },
+    });
+
+    if (!existeDoctor) {
+      throw new NotFoundException(
+        `El Doctor/Empleado con ID ${data.doctorId} no existe.`,
+      );
+    }
+
+
+    // Crear el Detalle
+    // Prisma infiere automáticamente el tipo a partir del modelo.
+    const nuevoDetalle = await this.prisma.expedienteDetalle.create({data});
+
+    return nuevoDetalle;
+  }
+
+
+  // ======================================================================
+  // Obtener el historial completo de un paciente por su id
+  // ======================================================================
 
   async getHistorialPaciente(pacienteId: number){
   const expedienteDetalles = await this.prisma.expedienteDetalle.findMany({
@@ -210,5 +329,7 @@ async create(createExpedienteDto: CreateExpedienteDto) {
   return expedienteDetalles;
 
 }
+
+async
 
 }
