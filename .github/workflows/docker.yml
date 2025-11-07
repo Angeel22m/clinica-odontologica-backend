@@ -23,8 +23,8 @@ jobs:
           node-version: 22.x 
 
       - name: Instalar dependencias
-        # npm ci es más rápido y seguro para entornos de CI
-        run: npm ci
+        
+        run: npm install
 
       - name: Correr Tests Unitarios
         run: npm run test
