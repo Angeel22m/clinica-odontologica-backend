@@ -82,10 +82,7 @@ jobs:
 
       - name: Deploy Container
         run: |
-          echo "Deteniendo contenedor anterior si existe..."
-          docker stop clinica-backend-app || true
-          docker rm clinica-backend-app || true
-
+         
           echo "Iniciando contenedor con variables de entorno..."
           docker run -d --name clinica-backend-app \
             -p ${{ env.PORT }}:${{ env.PORT }} \
