@@ -9,7 +9,7 @@ import { HistorialDetalleDto } from './dto/historial-expediente.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from '../firebase/storage.service';
 import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // 🔑 Necesitas tu guard de autenticación
+import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard de autenticación
 import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
 import { Roles } from '../auth/roles.decorator';           //  Necesitas tu decorador @Roles
 import { get } from 'http';
