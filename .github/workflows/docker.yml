@@ -84,10 +84,10 @@ jobs:
         run: |
          
           echo "Iniciando contenedor con variables de entorno..."
-          docker run -d --name clinica-backend-app \
+          docker run -d angeel22m/clinica-backend:latest \
             -p ${{ env.PORT }}:${{ env.PORT }} \
             -e NODE_ENV=production \
             -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             -e FIREBASE_SERVICE_ACCOUNT_KEY="${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" \
             -e FIREBASE_STORAGE_BUCKET="${{ secrets.FIREBASE_STORAGE_BUCKET }}" \
-            ${{ env.IMAGE_NAME }}:latest
+            
