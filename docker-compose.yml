@@ -1,0 +1,12 @@
+version: '3.9'
+
+services:
+  backend:
+    image: angeel22m/clinica-backend:latest
+    container_name: clinica-backend-app
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+    restart: unless-stopped
+    command: ["node", "dist/src/main.js"]
