@@ -63,10 +63,14 @@ export class ServiciosService {
   async updateServicio(id: number, updateServiciosDto: UpdateServiciosDto) {
     try {
       const servicio = await this.prisma.servicioClinico.findUnique({
-        where: { id: id },
-      });
+        where: { id: id }});
+      const servicioExistente = await this.prisma.servicioClinico.findFirst({
+        where: { nombre: updateServiciosDto.nombre }});
       if (!servicio) {
         return { message: 'El servicio no existe', code: 4 };
+      }
+      if (servicioExistente) {
+        return { message: 'Servicio existente', code: 6 }
       }
       if (
         updateServiciosDto.precio !== undefined &&
