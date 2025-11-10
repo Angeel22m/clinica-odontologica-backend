@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, BadRequestException, HttpException} from '@nestjs/common';
 import { FirebaseService } from './firebase.service';
-import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service'; // 🔑 Importar el nuevo servicio
+import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service'; // Importar el nuevo servicio
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 

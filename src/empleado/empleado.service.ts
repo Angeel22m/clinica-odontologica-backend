@@ -95,11 +95,17 @@ async UpdateEmpleado(id: number, dto: Partial<UpdateEmpleadoDto>) {
       include: { persona: true },
     });
 
-    if (!empleadoExistente) {
-      throw new NotFoundException(`Empleado con ID ${id} no encontrado`);
+
+     // 1️ Validar que el DNI no exista
+    const dniExists = await tx.persona.findUnique({
+      where: { dni: dto.dni },
+    });
+    console.log(`${dniExists?.dni}=${dto.dni}`)
+    if (dniExists&&dniExists.id!==id) {
+      throw new BadRequestException(`El DNI ${dto.dni} ya está registrado.`);
     }
 
-    const personaId = empleadoExistente.personaId;
+    const personaId = empleadoExistente?.personaId;
 
     // 2️ Actualizar Persona
     const personaActualizada = await tx.persona.update({

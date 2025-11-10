@@ -20,15 +20,13 @@ export class EmpleadoController {
 async create(@Body() dto: CreateEmpleadoDto) {
   try {
     const result = await this.empleadoService.createEmpleado(dto);
-    console.log('Persona, empleado y usuario creados:', result);
-
+   
     return {
-      message: 'Persona, empleado y usuario creados correctamente',
+      message: 'Empleado creado correctamente',
       data: result,
     };
-  } catch (error) {
-    console.error('Error al crear persona/empleado/usuario:', error);
-    throw new BadRequestException('Error al crear persona, empleado o usuario');
+  } catch (error) {    
+    throw new BadRequestException(`${error.message}`);
   }
 }
 
@@ -38,7 +36,7 @@ async create(@Body() dto: CreateEmpleadoDto) {
 @ApiResponse({ description: 'Obtener todos los empleados registrados con sus datos personales y de usuario' })
 async findAll() {
   const empleados = await this.empleadoService.findAllCompleto();
-  console.log('Empleados registrados (completos):', empleados);
+ 
 
   return {
     message: 'Lista de empleados registrados (con persona y usuario)',
@@ -60,7 +58,7 @@ async findOne(@Param('id', ParseIntPipe) id: number) {
       message: `Empleado con ID ${id} no encontrado`,
     };
   }
-  console.log(`Empleado con ID ${id} encontrado:`, empleado);
+ 
   return {
     message: `Empleado con ID ${id} encontrado correctamente`,
     data: empleado,
@@ -77,15 +75,15 @@ async update(
 ) {
   try {
     const empleado = await this.empleadoService.UpdateEmpleado(id, UpdateEmpleadoDto);
-    console.log(`Empleado con ID ${id} actualizado junto con su persona y usuario:`, empleado);
+ 
 
     return {
       message: `Empleado con ID ${id} actualizado correctamente (incluye persona y usuario)`,
       data: empleado,
     };
   } catch (error) {
-    console.error('Error al actualizar empleado/usuario/persona:', error);
-    throw new BadRequestException('Error al actualizar el empleado, usuario o persona');
+   
+    throw new BadRequestException(error.message);
   }
 }
 
