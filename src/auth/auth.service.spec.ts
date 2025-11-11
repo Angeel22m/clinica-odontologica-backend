@@ -12,6 +12,7 @@ const mockPrisma = {
   },
   persona: {
     create: jest.fn(),
+    findUnique: jest.fn(),
   },
 };
 
