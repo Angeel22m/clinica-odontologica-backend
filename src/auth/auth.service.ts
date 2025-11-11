@@ -52,7 +52,6 @@ export class AuthService {
       correo,
       password,
     } = signupDto;
-    console.log(signupDto.dni);
     const dniExists = await this.prisma.persona.findUnique({
       where: { dni }
     });
