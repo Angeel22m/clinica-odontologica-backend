@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, BadRequestException, HttpException} from '@nestjs/common';
 import { FirebaseService } from './firebase.service';
-import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service'; // 🔑 Importar el nuevo servicio
+import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service'; // Importar el nuevo servicio
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 
@@ -16,7 +16,7 @@ interface UploadResult {
 export class StorageService {
     constructor(
         private readonly firebaseService: FirebaseService,
-        // 🔑 Inyectar el servicio de Prisma
+        // Inyectar el servicio de Prisma
         private readonly expedienteArchivoService: ExpedienteArchivoService, 
     ) {}
 
@@ -31,10 +31,21 @@ export class StorageService {
         await this.expedienteArchivoService.validateFks(expedienteId, creadoPorId);
         const bucket = this.firebaseService.getBucket();
         
-        // 1. Validaciones... (manteniendo tu lógica)
-        const allowedMimeTypes = ['image/png', 'application/pdf'];
+        // 1. Validaciones basicas
+        
+        const allowedMimeTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'application/pdf',
+        ];
+
+        // Validación al subir el archivo
         if (!allowedMimeTypes.includes(file.mimetype)) {
-            throw new BadRequestException('Tipo de archivo no permitido. Solo PNG y PDF.');
+        throw new BadRequestException('Tipo de archivo no permitido. Solo imágenes o PDFs.');
         }
 
         // 2. Generar nombres y rutas
@@ -59,16 +70,16 @@ export class StorageService {
                     // 3. Generar URL Firmada (TEMPORAL) para la respuesta inmediata al POST
                     const urlConfig = {
                         action: 'read' as const,
-                        expires: Date.now() + 1000 * 60 * 60, // 1 hora
+                        expires: Date.now() + 1000 * 60 * 5 , // 5 minutos
                     };
                     const [signedUrl] = await fileUpload.getSignedUrl(urlConfig);
                     
-                    // 4. 🔑 GUARDAR METADATA EN PRISMA
+                    // 4. GUARDAR METADATA EN PRISMA
                     const fileRecord = await this.expedienteArchivoService.create({
                         expedienteId: expedienteId,
                         nombreArchivo: file.originalname,
                         storageName: storageName,
-                        filePath: filePath, // ⬅️ Guardamos la ruta permanente (la clave)
+                        filePath: filePath, // Guardamos la ruta permanente (la clave)
                         tipoArchivo: file.mimetype,
                         creadoPorId: creadoPorId, 
                     });
@@ -83,8 +94,7 @@ export class StorageService {
                 } catch (error) {
                     console.error('Error al guardar registro o generar URL:', error);
                     
-                    // SOLUCIÓN: Verifica si es un error HTTP controlado (404, etc.)
-                    // Asegúrate de importar HttpException en la parte superior del archivo.
+                    // Verifica si es un error HTTP controlado (404, etc.)                   
                     if (error instanceof HttpException) {
                         // Relanza el error 404 (o 400), que es lo que debe ver Postman
                         reject(error);
@@ -100,19 +110,40 @@ export class StorageService {
     // =======================================================================================
     // 2. MÉTODO PARA GENERAR URL FIRMADA (GET)
     // =======================================================================================
-    async generateSignedUrl(filePath: string): Promise<string> {
-        const bucket = this.firebaseService.getBucket();
+   async generateSignedUrls(filePaths: string[]): Promise<string[]> {
+    const bucket = this.firebaseService.getBucket();
+    
+    // Usaremos Promise.all para procesar todas las rutas en paralelo
+    const urlPromises = filePaths.map(async (filePath) => {
         const file = bucket.file(filePath);
+
+        // 1. Validar la existencia del archivo
+        const [exists] = await file.exists();
         
-        // La URL expira en 1 hora (ajusta esto según tus políticas de seguridad)
+        if (!exists) {
+            // Si el archivo NO existe, devolvemos null o una cadena vacía para indicar el fallo
+            console.warn(`Advertencia: El archivo en la ruta "${filePath}" no se encontró en el bucket.`);
+            return null; // O podrías devolver una URL de error predeterminada, dependiendo de tu lógica.
+        }
+
+        // 2. Si el archivo SÍ existe, generamos la URL firmada
         const [url] = await file.getSignedUrl({
             action: 'read',
-            // expire en 60 seconds
-            expires: Date.now() + 3000 // 
+            // La URL expira en 5 minutos
+            expires: Date.now() + 1000 * 60 * 5 
         });
         
         return url;
-    }
+    });
+
+    // Esperamos a que todas las promesas de URL se resuelvan
+    const signedUrlsWithNulls = await Promise.all(urlPromises);
+    
+    // 3. Filtramos los valores nulos para devolver solo las URLs válidas
+    const validSignedUrls = signedUrlsWithNulls.filter(url => url !== null) as string[];
+
+    return validSignedUrls;
+}
 
     // =======================================================================================
     // 3. MÉTODO DE ELIMINACIÓN (DELETE)

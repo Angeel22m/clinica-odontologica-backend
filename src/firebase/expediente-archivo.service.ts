@@ -8,8 +8,11 @@ type CreateExpedienteArchivoDto = Omit<ExpedienteArchivo, 'id' | 'createdAt' | '
 export class ExpedienteArchivoService {
   constructor(private prisma: PrismaService) {}
 
+  // ======================================================================
+  // Validar que existan las FK antes de crear un registro
+  // ======================================================================
   async validateFks(expedienteId: number, creadoPorId: number): Promise<void> {
-    // 1. Validar existencia del Expediente
+    // Validar existencia del Expediente
     const expediente = await this.prisma.expediente.findUnique({
       where: { id: expedienteId },
       select: { id: true }
@@ -18,7 +21,7 @@ export class ExpedienteArchivoService {
       throw new NotFoundException(`Expediente con ID ${expedienteId} no encontrado. No se puede iniciar la subida.`);
     }
 
-    // 2. Validar existencia del Empleado (Creador)
+    // Validar existencia del Empleado (Creador)
     const empleado = await this.prisma.empleado.findUnique({
       where: { id: creadoPorId },
       select: { id: true }
@@ -29,7 +32,7 @@ export class ExpedienteArchivoService {
 }
 
   // ======================================================================
-  // C: Crear y guardar los metadatos CON VALIDACIÓN DE EXISTENCIA
+  // Crea un nuevo registro en epedienteArchivo
   // ======================================================================
   async create(data: CreateExpedienteArchivoDto): Promise<ExpedienteArchivo> {
     const { expedienteId, creadoPorId } = data;
@@ -37,7 +40,7 @@ export class ExpedienteArchivoService {
   }
 
   // ======================================================================
-  // R, R, D: Métodos de Lectura y Eliminación (se mantienen)
+  // Obtener archivos por el id del expediente
   // ======================================================================
   
   async findByExpediente(expedienteId: number): Promise<ExpedienteArchivo[]> {
@@ -47,6 +50,9 @@ export class ExpedienteArchivoService {
     });
   }
   
+  // ======================================================================
+  // Obtener un archivo por su id
+  // ======================================================================
   async findOne(id: number): Promise<ExpedienteArchivo> {
     const file = await this.prisma.expedienteArchivo.findUnique({ where: { id } });
     if (!file) {

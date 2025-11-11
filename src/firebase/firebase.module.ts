@@ -5,9 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ExpedienteArchivoService } from './expediente-archivo.service';
 
 @Module({
-  imports: [ConfigModule.forRoot()],
-  providers: [StorageService, FirebaseService, ExpedienteArchivoService],
-  // ¡CLAVE! Exportar los servicios que otros módulos consumirán.
-  exports: [StorageService, ExpedienteArchivoService] 
+  imports: [ConfigModule.forRoot()],
+  providers: [StorageService, FirebaseService, ExpedienteArchivoService],  
+  exports: [StorageService, ExpedienteArchivoService] 
 })
 export class FirebaseModule {}

@@ -4,8 +4,17 @@ import { ExpedienteModule } from './expediente/expediente.module';
 import { ServiciosModule } from './servicios/servicios.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
+import 'dotenv/config';
+
 
 @Module({
-  imports: [EmpleadoModule, ServiciosModule, ExpedienteModule, FirebaseModule, AuthModule],
+  imports: [
+    EmpleadoModule,
+    ExpedienteModule,
+    ServiciosModule,
+    FirebaseModule,
+    AuthModule,
+  ],
 })
 export class AppModule {}
+

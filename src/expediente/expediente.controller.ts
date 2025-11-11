@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, Delete, Put, UseInterceptors, UploadedFile,BadRequestException,Req,UseGuards } from '@nestjs/common';
 import { ExpedienteService } from './expediente.service';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
+import { CreateExpedienteDetalleDto } from './dto/create-expdiente-detalle.dtp';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
 import { ApiOperation, ApiTags, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ParseIntPipe } from '@nestjs/common/pipes/parse-int.pipe';
@@ -8,15 +9,16 @@ import { HistorialDetalleDto } from './dto/historial-expediente.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from '../firebase/storage.service';
 import { ExpedienteArchivoService } from '../firebase/expediente-archivo.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // 🔑 Necesitas tu guard de autenticación
+import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard de autenticación
 import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
 import { Roles } from '../auth/roles.decorator';           //  Necesitas tu decorador @Roles
+import { get } from 'http';
 
 
 @ApiTags('expediente')
 
 @Controller('expediente')
-@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
+//@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
 export class ExpedienteController {
   constructor(private readonly expedienteService: ExpedienteService,
               private storageService: StorageService,
@@ -55,14 +57,20 @@ export class ExpedienteController {
  update(@Param('id') id: Number, @Body() updateExpedienteDto: UpdateExpedienteDto) {
     return this.expedienteService.update(+id, updateExpedienteDto);
   }
-
+// ======================================================================
+// DELETE: ELIMINAR UN EXPEDIENTE POR ID
+// ======================================================================
+/*
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un expediente por ID' })
   @ApiResponse({ status: 200, description: 'Expediente eliminado correctamente.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
   remove(@Param('id') id: Number) {
-    return this.expedienteService.remove(+id);
-  }
+    return this.expedienteService.remove(+id); 
+  }*/
+// ======================================================================
+// GET: OBTIENTE UN HISTORIAL DE EXPEDIENTE DETALLE POR ID DEL PACIENTE
+// ======================================================================
 
   @Get('historial/:pacienteId')
   @ApiParam({ name: 'pacienteId', type: Number })
@@ -72,11 +80,16 @@ export class ExpedienteController {
     return this.expedienteService.getHistorialPaciente(pacienteId);
   }
 
+  // ======================================================================
+  // POST: SUBIR ARCHIVO Y CREAR UN REGISTRO EN LA BASE DE DATOS
+  // ======================================================================
+
+
   @Post('archivo/upload')
   @ApiParam({ name: 'file', type: 'file', description: 'Archivo a subir' })
   @ApiResponse({ status: 201, description: 'Archivo subido y registrado correctamente.' })
   @ApiResponse({ status: 400, description: 'Error en la subida del archivo.' })
-  @Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
+  //@Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
   @UseInterceptors(FileInterceptor('file')) // 'file' debe coincidir con la KEY en Postman/Frontend
   async upload(
     @UploadedFile() file: Express.Multer.File,
@@ -105,9 +118,9 @@ export class ExpedienteController {
   }
 
   // =======================================================================
-  // 2. GET: OBTENER ARCHIVOS POR EXPEDIENTE (Genera URLs temporales)
-  // URL: GET /expediente-archivos/expediente/123
+  // GET: OBTENER ARCHIVOS POR EXPEDIENTE (Genera URLs temporales)
   // =======================================================================
+  /*
   @Get('archivo/:expedienteId')
   @ApiParam({ name: 'expedienteId', type: Number })
   @ApiResponse({ status: 200, description: 'Archivos obtenidos correctamente con URLs temporales.' })
@@ -139,19 +152,58 @@ export class ExpedienteController {
 
     return archivosConUrl;
   }
-
+*/
   // =======================================================================
-  // 3. DELETE: ELIMINAR ARCHIVO (Eliminar de Firebase y Prisma)
-  // URL: DELETE /expediente-archivos/5
+  // DELETE: ELIMINAR ARCHIVO (Eliminar de Firebase y Prisma)
   // =======================================================================
   @Delete('archivo/:id')
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Archivo eliminado correctamente de Firebase y Prisma.' })
   @ApiResponse({ status: 404, description: 'Archivo no encontrado.' })
-  @Roles('ADMIN') // Normalmente, solo un admin puede eliminar permanentemente
+  //@Roles('ADMIN') // Normalmente, solo un admin puede eliminar permanentemente
   async deleteFile(@Param('id', ParseIntPipe) id: number) {
     // El StorageService maneja la lógica dual: elimina de Firebase y luego de Prisma
     return this.storageService.deleteFile(id);
   }
+
+
+  //===========================================================================
+  // GET: OBTENER LOS EXPEDIENTES DE SUS PACIENTES COMO DOCTOR
+  //===========================================================================
+
+  @Get('doctor/:id')
+
+  async obtenerExpedinetesPorDoctor(@Param('id',ParseIntPipe) id: number){
+    return this.expedienteService.getExpedientesPorDoctor(id);
+  }
+  @Post('detalle/:expedienteId') // <--- Ruta específica para el POST del detalle
+  @ApiOperation({ summary: 'Crea un nuevo detalle para un expediente existente.' })
+  @ApiResponse({ status: 201, description: 'Detalle creado exitosamente.' })
+  @ApiResponse({ status: 404, description: 'El expediente o doctor no existe.' })
+  @ApiResponse({ status: 400, description: 'Conflicto de IDs entre la ruta y el cuerpo.' })
+  async crearDetalle(
+    @Param('expedienteId', ParseIntPipe) expedienteId: number, // ID del expediente (del path)
+    @Body() data: CreateExpedienteDetalleDto, // Datos del nuevo detalle (del body)
+  ) {
+    // 1. Validar que el expedienteId del path coincida con el expedienteId del body (Buena Práctica)
+    // Es mejor lanzar un error explícito si hay una inconsistencia en los datos.
+    if (data.expedienteId !== expedienteId) {
+      throw new BadRequestException(
+        `El 'expedienteId' en la ruta (${expedienteId}) no coincide con el 'expedienteId' en el cuerpo (${data.expedienteId}).`,
+      );
+    }
+    
+    // 2. Llamar al servicio, pasando el DTO
+    // La lógica de verificar existencia de Expediente y Doctor está en el servicio.
+    const nuevoDetalle = await this.expedienteService.crearExpedienteDetalle(
+      data,
+    );
+
+    return {
+      message: 'Detalle de expediente creado exitosamente.',
+      data: nuevoDetalle,
+    };
+  }
+
 
 }

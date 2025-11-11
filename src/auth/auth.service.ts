@@ -52,16 +52,21 @@ export class AuthService {
       correo,
       password,
     } = signupDto;
-
+    const dniExists = await this.prisma.persona.findUnique({
+      where: { dni }
+    });
     const emailExists = await this.prisma.user.findUnique({
       where: { correo },
     });
+    if (dniExists) {
+      return {message: 'El dni ya existe', code: 9};
+      }
     if (emailExists) {
       return { message: 'El correo ya está registrado', code: 12 };
     }
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-
+      
       const newPersona = await this.prisma.persona.create({
         data: {
           nombre,
