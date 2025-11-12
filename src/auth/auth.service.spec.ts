@@ -65,7 +65,7 @@ describe('AuthService', () => {
         password: '1234',
       });
 
-      expect(result).toEqual({ message: 'Usuario no encontrado', code: 11 });
+      expect(result).toEqual({ message: 'Credenciales Invalidas', code: 11 });
     });
 
     it('debería retornar código 13 si la contraseña no coincide', async () => {
@@ -77,7 +77,7 @@ describe('AuthService', () => {
         password: 'wrongpass',
       });
 
-      expect(result).toEqual({ message: 'Credenciales erróneas.', code: 13 });
+      expect(result).toEqual({ message: 'Credenciales Invalidas', code: 13 });
     });
 
     it('debería retornar token y datos de usuario si todo es correcto', async () => {
