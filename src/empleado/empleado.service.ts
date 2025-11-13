@@ -15,7 +15,7 @@ async createEmpleado(dto: CreateEmpleadoDto) {
   return this.prisma.$transaction(async (tx) => {
 
      // 1️ Validar que el DNI no exista
-    const dniExists = await tx.persona.findUnique({
+    const dniExists = await tx.persona.findFirst({
       where: { dni: dto.dni },
     });
 
@@ -97,7 +97,7 @@ async UpdateEmpleado(id: number, dto: Partial<UpdateEmpleadoDto>) {
 
 
      // 1️ Validar que el DNI no exista
-    const dniExists = await tx.persona.findUnique({
+    const dniExists = await tx.persona.findFirst({
       where: { dni: dto.dni },
     });
     console.log(`${dniExists?.dni}=${dto.dni}`)

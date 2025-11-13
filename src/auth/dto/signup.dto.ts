@@ -17,6 +17,7 @@ export class SignupDto {
   @Matches(/^[\p{L}][\p{L}\s'’-]{1,49}$/u, {
     message: 'El nombre solo puede contener letras, espacios y guiones.',
   })
+
   nombre: string;
 
   @IsString()
@@ -27,13 +28,14 @@ export class SignupDto {
   })
   apellido: string;
 
+  @IsOptional() 
   @IsString()
   @Matches(/^(?:\d{4}-\d{4}-\d{5}|\d{13})$/, {
     message: 'El DNI debe tener el formato ####-####-##### o 13 dígitos.',
   })
-  dni: string;
+  dni?: string;
 
-  @IsOptional()
+  @IsOptional() // TELÉFONO: Mantenido como opcional
   @IsString()
   @Matches(/^(?:\+?504[-\s]?)?(?:\d{8}|\d{4}[-\s]?\d{4})$/, {
     message:
@@ -41,24 +43,26 @@ export class SignupDto {
   })
   telefono?: string;
 
-  @IsOptional()
+  @IsOptional() // DIRECCIÓN: Mantenido como opcional
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   direccion?: string;
 
-  @IsOptional()
+  @IsOptional() 
   @IsDateString({})
   @ApiProperty({ description: 'La fecha debe tener formato ISO (YYYY-MM-DD).' })
   fechaNac?: Date;
 
   @IsEmail({})
+  @IsString()
   correo: string;
 
+  @IsOptional() // PASSWORD: Ahora es opcional por el registro con Google
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
   @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
     message: 'La contraseña debe contener al menos una letra y un número.',
   })
-  password: string;
+  password?: string;
 }
