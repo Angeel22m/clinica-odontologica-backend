@@ -176,6 +176,12 @@ async function main() {
   }
   console.log(`✅ ${expedientesCreados.length} Archivos de expediente creados`);
 
+// Función para generar horas aleatorias
+function randomHora() {
+  const h = String(Math.floor(Math.random() * 9) + 8).padStart(2, "0"); // 08–16
+  const m = ["00", "15", "30", "45"][Math.floor(Math.random() * 4)];
+  return `${h}:${m}`;
+}
 
   // 8️ Citas (60 registros, variedad de estados y fechas)
 // ... (omito la inicialización de citasData) ...
@@ -192,6 +198,7 @@ for (let i = 1; i <= NUM_CLIENTES; i++) {
   citasData.push({
     // Utilizamos la variable del día corregida
     fecha: new Date(`${BASE_YEAR}-09-${diaCompletada}T08:00:00Z`), 
+    hora: randomHora(),
     estado: EstadoCita.COMPLETADA,
     pacienteId: i,
     doctorId: doctor,
@@ -203,6 +210,7 @@ for (let i = 1; i <= NUM_CLIENTES; i++) {
     citasData.push({
       // Utilizamos la variable del día corregida
       fecha: new Date(`${BASE_YEAR}-10-${diaCancelada}T10:00:00Z`),
+      hora: randomHora(),
       estado: EstadoCita.CANCELADA,
       pacienteId: i,
       doctorId: getDoctorId(i + 1),
@@ -214,6 +222,7 @@ for (let i = 1; i <= NUM_CLIENTES; i++) {
   citasData.push({
     // Utilizamos la variable del día corregida
     fecha: new Date(`${BASE_YEAR}-11-${diaPendiente}T14:00:00Z`),
+    hora: randomHora(),
     estado: EstadoCita.PENDIENTE,
     pacienteId: i,
     doctorId: doctor,

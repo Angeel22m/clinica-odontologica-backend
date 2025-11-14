@@ -3,9 +3,9 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
+  ParseIntPipe,
+  Put,
 } from '@nestjs/common';
 import { CitasService } from './citas.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
@@ -27,22 +27,36 @@ export class CitasController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Obtener todas las citas.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de citas obtenida correctamente.',
+  })
+  @ApiResponse({ status: 404, description: 'No se encontraron citas.' })
   findAll() {
     return this.citasService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.citasService.findOne(+id);
+  @ApiOperation({ summary: 'Obtener una cita por ID.' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Cita obtenida correctamente.' })
+  @ApiResponse({ status: 404, description: 'Cita no encontrada.' })
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.citasService.findOne(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCitaDto: UpdateCitaDto) {
-    return this.citasService.update(+id, updateCitaDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.citasService.remove(+id);
+  @Put(':id')
+  @ApiOperation({ summary: 'Actualizar una cita.' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiParam({ name: 'body', type: UpdateCitaDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Cita actualizada correctamente.',
+  })
+  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
+  @ApiResponse({ status: 404, description: 'Cita no encontrada.' })
+  update(@Param('id') id: number, @Body() UpdateCitaDto: UpdateCitaDto) {
+    return this.citasService.update(id, UpdateCitaDto);
   }
 }

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Cita" ALTER COLUMN "hora" DROP DEFAULT;

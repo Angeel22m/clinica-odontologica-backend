@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsInt } from 'class-validator';
+import { IsDateString, IsInt, IsEnum } from 'class-validator';
+import { HorarioLaboral } from '../../enums/enums';
+import { EstadoCita } from '../../enums/enums';
 
 export class CreateCitaDto {
   @IsDateString(
@@ -7,6 +9,14 @@ export class CreateCitaDto {
     { message: 'La fecha debe tener un formato válido (YYYY-MM-DD)' },
   )
   fecha: string;
+
+  @ApiProperty({ enum: EstadoCita, default: EstadoCita.PENDIENTE })
+  @IsEnum(EstadoCita)
+  estado?: EstadoCita = EstadoCita.PENDIENTE;
+
+  @ApiProperty({ enum: HorarioLaboral })
+  @IsEnum(HorarioLaboral)
+  hora: HorarioLaboral;
 
   @ApiProperty({
     description: 'ID del paciente asociado a la cita',
