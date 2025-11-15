@@ -213,7 +213,35 @@ async getHorasDisponibles(doctorId: number, fecha: string) {
 }
 
 //obteniendo citas por id del paciente
-  
+  async getCitasPorPaciente(pacienteId: number) {
+    const paciente = await this.prisma.persona.findUnique({
+      where: { id: pacienteId },
+    });
+    
+    if (!paciente) {
+      return {message: 'Paciente no encontrado', code: 22};
+    }
+    
+    const citas = await this.prisma.cita.findMany({
+      where : {
+        pacienteId,
+        estado: 'PENDIENTE',
+      },
+      include: {
+        doctor: {
+          include: {
+            persona: true,
+          },
+        },
+        servicio: true,
+      }, orderBy: [
+        { fecha: 'asc'},
+        { hora: 'asc'}
+      ],
+    });
+    
+    return citas;
+  }
 
 
 

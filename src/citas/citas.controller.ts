@@ -45,20 +45,25 @@ export class CitasController {
     return Object.values(HorarioLaboral)
   }
 
-@Get('doctores-disponibles')
-async getDoctoresDisponibles(@Query('fecha') fecha: string) {
-  return this.citasService.getDoctoresDisponibles(fecha);
-}
+  @Get('doctores-disponibles')
+  async getDoctoresDisponibles(@Query('fecha') fecha: string) {
+    return this.citasService.getDoctoresDisponibles(fecha);
+  }
 
-@Get('horas-disponibles')
-async getHorasDisponibles(
-  @Query('doctorId') doctorId: string,
-  @Query('fecha') fecha: string,
-) {
-  return this.citasService.getHorasDisponibles(Number(doctorId), fecha);
-}
+  @Get('horas-disponibles')
+  async getHorasDisponibles(
+    @Query('doctorId') doctorId: string,
+    @Query('fecha') fecha: string,
+  ) {
+      return this.citasService.getHorasDisponibles(Number(doctorId), fecha);
+  }
 
-
+  @Get('paciente/:pacienteId')
+  async getCitasPorPaciente(
+    @Param('pacienteId', ParseIntPipe) pacienteId: number
+  ) {
+    return this.citasService.getCitasPorPaciente(pacienteId);
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una cita por ID.' })
