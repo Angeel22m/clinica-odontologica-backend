@@ -4,6 +4,7 @@ import { ExpedienteModule } from './expediente/expediente.module';
 import { ServiciosModule } from './servicios/servicios.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
+import { CitasModule } from './citas/citas.module';
 import 'dotenv/config';
 import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
 
@@ -16,6 +17,7 @@ import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
     ServiciosModule,
     FirebaseModule,
     AuthModule,
+    CitasModule,
     ModificarInfoModule
     
   ],

@@ -13,6 +13,7 @@ const mockPrisma = {
   persona: {
     create: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
   },
 };
 
@@ -64,7 +65,7 @@ describe('AuthService', () => {
         password: '1234',
       });
 
-      expect(result).toEqual({ message: 'Usuario no encontrado', code: 11 });
+      expect(result).toEqual({ message: 'Credenciales Invalidas', code: 11 });
     });
 
     it('debería retornar código 13 si la contraseña no coincide', async () => {
@@ -76,7 +77,7 @@ describe('AuthService', () => {
         password: 'wrongpass',
       });
 
-      expect(result).toEqual({ message: 'Credenciales erróneas.', code: 13 });
+      expect(result).toEqual({ message: 'Credenciales Invalidas', code: 13 });
     });
 
     it('debería retornar token y datos de usuario si todo es correcto', async () => {
@@ -164,10 +165,12 @@ describe('AuthService', () => {
         }),
       });
 
-      expect(result).toEqual({
-        message: 'Usuario registrado con éxito',
-        code: 10,
-      });
+      expect(result).toMatchObject({
+  message: 'Usuario registrado con éxito',
+  code: 10,
+  user: expect.any(Object),
+});
+
     });
 
     it('debería manejar errores internos durante el registro', async () => {
@@ -177,5 +180,37 @@ describe('AuthService', () => {
       const result = await service.signupUser(signupDto);
       expect(result.code).toBe(500);
     });
+
+   it('debería retornar código 9 si el DNI ya existe', async () => {
+  prisma.user.findFirst.mockResolvedValue(null); // correo libre
+  bcryptHash.mockResolvedValue('hashedPass'); // hash exitoso
+  prisma.persona.findFirst.mockResolvedValue({ id: 2 }); // dni duplicado
+
+  const result = await service.signupUser(signupDto);
+
+  expect(result).toEqual({
+    message: 'El DNI ya existe',
+    code: 9,
+  });
+});
+
+
+it('debería registrar un usuario social (sin password)', async () => {
+  prisma.user.findUnique.mockResolvedValue(null);
+  prisma.persona.create.mockResolvedValue({ id: 10 });
+  prisma.user.create.mockResolvedValue({ id: 1, correo: signupDto.correo });
+
+  const result = await service.signupUser(signupDto, true);
+
+  expect(prisma.user.create).toHaveBeenCalledWith({
+    data: expect.objectContaining({
+      correo: signupDto.correo,
+      password: '',
+    }),
+  });
+
+  expect(result.code).toBe(10);
+});
+
   });
 });

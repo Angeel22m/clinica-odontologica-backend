@@ -12,7 +12,7 @@ model Persona {
   id           Int       @id @default(autoincrement())
   nombre       String
   apellido     String
-  dni          String    @unique // Sugerencia: obligatorio y único
+  dni          String?   
   telefono     String?
   direccion    String?
   fechaNac     DateTime?
@@ -30,7 +30,7 @@ model Persona {
 model User {
   id          Int      @id @default(autoincrement())
   correo      String   @unique
-  password    String
+  password    String?
   rol         Rol      @default(CLIENTE)
   activo      Boolean  @default(true)
   personaId   Int      @unique
@@ -146,6 +146,7 @@ model Cita {
   id          Int          @id @default(autoincrement())
   fecha       DateTime
   estado      EstadoCita   @default(PENDIENTE)
+  hora        String       
   pacienteId  Int
   paciente    Persona      @relation(fields: [pacienteId], references: [id])
   doctorId    Int
@@ -155,11 +156,30 @@ model Cita {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  @@unique([fecha, doctorId]) // Un doctor solo puede tener una cita a la vez
+  @@unique([fecha, doctorId, hora]) // Un doctor solo puede tener una cita a la vez
 }
 
 enum EstadoCita {
   PENDIENTE
   COMPLETADA
   CANCELADA
+}
+
+enum HorarioLaboral {
+  H08_00
+  H08_30
+  H09_00
+  H09_30
+  H10_00
+  H10_30
+  H11_00
+  H11_30
+  H13_00
+  H13_30
+  H14_00
+  H14_30
+  H15_00
+  H15_30
+  H16_00
+  H16_30
 }
