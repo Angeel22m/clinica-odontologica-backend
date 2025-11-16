@@ -6,12 +6,15 @@ import {
   Param,
   ParseIntPipe,
   Put,
+  Query
 } from '@nestjs/common';
 import { CitasService } from './citas.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { CreateServiciosDto } from 'src/servicios/dto/create_servicios.dto';
+import { HorarioLaboral } from '../enums/enums';
+import { Prisma } from '@prisma/client';
 
 @Controller('citas')
 export class CitasController {
@@ -33,8 +36,33 @@ export class CitasController {
     description: 'Lista de citas obtenida correctamente.',
   })
   @ApiResponse({ status: 404, description: 'No se encontraron citas.' })
-  findAll() {
-    return this.citasService.findAll();
+  findAll(@Query('fecha') fecha?: string) {
+    return this.citasService.findAll({fecha});
+  }
+  
+  @Get('horarios')
+  getHorarios() {
+    return Object.values(HorarioLaboral)
+  }
+
+  @Get('doctores-disponibles')
+  async getDoctoresDisponibles(@Query('fecha') fecha: string) {
+    return this.citasService.getDoctoresDisponibles(fecha);
+  }
+
+  @Get('horas-disponibles')
+  async getHorasDisponibles(
+    @Query('doctorId') doctorId: string,
+    @Query('fecha') fecha: string,
+  ) {
+      return this.citasService.getHorasDisponibles(Number(doctorId), fecha);
+  }
+
+  @Get('paciente/:pacienteId')
+  async getCitasPorPaciente(
+    @Param('pacienteId', ParseIntPipe) pacienteId: number
+  ) {
+    return this.citasService.getCitasPorPaciente(pacienteId);
   }
 
   @Get(':id')
