@@ -18,7 +18,7 @@ import { get } from 'http';
 @ApiTags('expediente')
 
 @Controller('expediente')
-@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
+//@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
 export class ExpedienteController {
   constructor(private readonly expedienteService: ExpedienteService,
               private storageService: StorageService,
@@ -34,7 +34,7 @@ export class ExpedienteController {
   }
 
   @Get()
-  @Roles("CLIENTE")
+  //@Roles("CLIENTE")
   @ApiOperation({ summary: 'Obtener todos los expedientes' })
   @ApiResponse({ status: 200, description: 'Lista de expedientes obtenida correctamente.' })
   @ApiResponse({ status: 404, description: 'No se encontraron expedientes.' })
@@ -43,12 +43,21 @@ export class ExpedienteController {
   }
 
   @Get(':id')
-  @Roles("CLIENTE")
+  //@Roles("CLIENTE")
   @ApiOperation({ summary: 'Obtener un expediente por ID' })
   @ApiResponse({ status: 200, description: 'Expediente obtenido correctamente.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
  findOne(@Param('id') id: Number) {
     return this.expedienteService.findOne(+id);
+  }
+
+    @Get('paciente/:id')
+  //@Roles("CLIENTE")
+  @ApiOperation({ summary: 'Obtener un expediente por ID del paciente' })
+  @ApiResponse({ status: 200, description: 'Expediente obtenido correctamente.' })
+  @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
+ getExpedientePorIdPacientes(@Param('id') id: Number) {
+    return this.expedienteService.findOne(+id,true);
   }
 
   @Put(':id')
@@ -120,42 +129,6 @@ export class ExpedienteController {
   }
 
   // =======================================================================
-  // GET: OBTENER ARCHIVOS POR EXPEDIENTE (Genera URLs temporales)
-  // =======================================================================
-  /*
-  @Get('archivo/:expedienteId')
-  @ApiParam({ name: 'expedienteId', type: Number })
-  @ApiResponse({ status: 200, description: 'Archivos obtenidos correctamente con URLs temporales.' })
-  @ApiResponse({ status: 404, description: 'No se encontraron archivos para este expediente.' })
-  //@Roles('ADMIN', 'DOCTOR', '') // TODOS los roles que puedan ver archivos
-  async getFilesByExpediente(
-    @Param('expedienteId', ParseIntPipe) expedienteId: number,
-  ) {
-    // 1. Obtener los metadatos de Prisma (solo el filePath, no la URL antigua)
-    const archivos = await this.expedienteArchivoService.findByExpediente(
-      expedienteId,
-    );
-
-    // 2. Generar una URL firmada NUEVA y TEMPORAL para cada archivo
-    const archivosConUrl = await Promise.all(
-      archivos.map(async (archivo) => {
-        // Usamos el filePath (la clave guardada) para generar la URL
-        const signedUrl = await this.storageService.generateSignedUrl(
-          archivo.filePath,
-        );
-        
-        // Retornamos el objeto, añadiendo la URL temporal (que no se guardará en la DB)
-        return {
-          ...archivo,
-          signedUrl: signedUrl, // URL válida solo por 1 hora (o lo que hayas configurado)
-        };
-      }),
-    );
-
-    return archivosConUrl;
-  }
-*/
-  // =======================================================================
   // DELETE: ELIMINAR ARCHIVO (Eliminar de Firebase y Prisma)
   // =======================================================================
   @Delete('archivo/:id')
@@ -178,6 +151,9 @@ export class ExpedienteController {
   async obtenerExpedinetesPorDoctor(@Param('id',ParseIntPipe) id: number){
     return this.expedienteService.getExpedientesPorDoctor(id);
   }
+
+
+
   @Post('detalle/:expedienteId') // <--- Ruta específica para el POST del detalle
   @ApiOperation({ summary: 'Crea un nuevo detalle para un expediente existente.' })
   @ApiResponse({ status: 201, description: 'Detalle creado exitosamente.' })
@@ -187,8 +163,7 @@ export class ExpedienteController {
     @Param('expedienteId', ParseIntPipe) expedienteId: number, // ID del expediente (del path)
     @Body() data: CreateExpedienteDetalleDto, // Datos del nuevo detalle (del body)
   ) {
-    // 1. Validar que el expedienteId del path coincida con el expedienteId del body (Buena Práctica)
-    // Es mejor lanzar un error explícito si hay una inconsistencia en los datos.
+  
     if (data.expedienteId !== expedienteId) {
       throw new BadRequestException(
         `El 'expedienteId' en la ruta (${expedienteId}) no coincide con el 'expedienteId' en el cuerpo (${data.expedienteId}).`,

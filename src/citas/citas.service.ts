@@ -10,7 +10,7 @@ export class CitasService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCitaDto: CreateCitaDto) {
-    const { doctorId, pacienteId, fecha, hora } = createCitaDto;
+    const { fecha, hora, pacienteId, doctorId, servicioId} = createCitaDto;
     const doctorExists = await this.prisma.empleado.findUnique({
       where: { id: doctorId },
     });
@@ -81,22 +81,170 @@ export class CitasService {
     }
   }
 
-  async findAll() {
+  async findAll(filtros: {fecha?: string}) {
+    const where: any = {};
+
+    if (filtros.fecha) {
+    
+      const start = new Date(`${filtros.fecha}T00:00:00.000Z`);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(`${filtros.fecha}T23:59:59.999Z`);
+      end.setHours(23, 59, 59, 999);
+
+      where.fecha = {
+        gte: start,
+        lte: end,
+      };
+    }
+
     return this.prisma.cita.findMany({
-      select: {
-        id: true,
-        fecha: true,
-        pacienteId: true,
-        paciente: true,
-        doctorId: true,
+      where,
+      include: {
         doctor: true,
-        servicioId: true,
         servicio: true,
-        hora: true,
-        estado: true,
+        paciente: true,
+      },
+      orderBy: {
+        hora: 'asc',
       },
     });
   }
+
+async getDoctoresDisponibles(fecha: string) {
+
+  const fechaInicio = new Date(`${fecha}T00:00:00.000Z`);
+  //fechaInicio.setHours(0, 0, 0, 0);
+
+  const fechaFin = new Date(`${fecha}T23:59:59.999Z`);
+  //fechaFin.setHours(23, 59, 59, 999);
+
+  const horariosLaborales = Object.values(HorarioLaboral) as string[];
+
+  // 1. Obtener doctores
+  const doctores = await this.prisma.empleado.findMany({
+    where: { 
+      puesto: "DOCTOR",
+      activo: true,
+    },
+    include: {
+      persona: true,
+    },
+  });
+
+  const citasDelDia = await this.prisma.cita.findMany({
+    where: {
+      fecha: {
+        gte: fechaInicio,
+        lte: fechaFin,
+      },
+    },
+    select: {
+      doctorId: true,
+      hora: true,
+    }
+  });
+  
+  const citasPorDoctor = new Map<number, string[]>();
+  for (const c of citasDelDia) {
+    const arr = citasPorDoctor.get(c.doctorId) ?? [];
+    arr.push(c.hora);
+    citasPorDoctor.set(c.doctorId, arr);
+  }
+
+  const disponibles: {id: number; nombre:string }[] = [];
+
+  for (const doctor of doctores) {
+    //const citasDelDoctor = citas.filter(c => c.doctorId === doctor.id);
+    const horasOcupadas = citasPorDoctor.get(doctor.id) ?? [];
+
+    const horasLibres = horariosLaborales.filter(
+      hora => !horasOcupadas.includes(hora)
+    );
+
+    if (horasLibres.length > 0) {
+      const nombreCompleto = doctor.persona 
+      ? `${doctor.persona.nombre} ${doctor.persona.apellido ?? ''}`.trim()
+      : `Doctor ${doctor.id}`;
+    
+      disponibles.push({
+        id: doctor.id,
+        nombre: nombreCompleto,
+      });
+    }
+  }
+
+  return disponibles;
+}
+
+
+async getHorasDisponibles(doctorId: number, fecha: string) {
+  console.log(typeof doctorId);
+  
+  const fechaObj = new Date(fecha + 'T00:00:00Z');
+  if (isNaN(fechaObj.getTime())) {
+    throw new Error('fecha invalida');
+  }
+
+  const fechaInicio = new Date(fechaObj);
+  fechaInicio.setHours(0, 0, 0, 0);
+  const fechaFin = new Date(fechaObj);
+  fechaFin.setHours(23, 59, 59, 999);
+
+  const horariosLaborales = Object.values(HorarioLaboral);
+
+  const citas = await this.prisma.cita.findMany({
+    where: {
+      doctorId,
+      fecha: {
+        gte: fechaInicio,
+        lte: fechaFin,
+      },
+    },
+  });
+
+  const horasOcupadas = citas.map(c => c.hora);
+
+  const horasDisponibles = horariosLaborales.filter(
+    hora => !horasOcupadas.includes(hora)
+  );
+
+  return horasDisponibles;
+}
+
+//obteniendo citas por id del paciente
+  async getCitasPorPaciente(pacienteId: number) {
+    const paciente = await this.prisma.persona.findUnique({
+      where: { id: pacienteId },
+    });
+    
+    if (!paciente) {
+      return {message: 'Paciente no encontrado', code: 22};
+    }
+    
+    const citas = await this.prisma.cita.findMany({
+      where : {
+        pacienteId,
+        estado: 'PENDIENTE',
+      },
+      include: {
+        doctor: {
+          include: {
+            persona: true,
+          },
+        },
+        servicio: true,
+      }, orderBy: [
+        { fecha: 'asc'},
+        { hora: 'asc'}
+      ],
+    });
+    
+    return citas;
+  }
+
+
+
 
   async findOne(id: number) {
     const cita = await this.prisma.cita.findUnique({
@@ -181,13 +329,12 @@ export class CitasService {
     }
   }
 
-  // obtener las citas pendientes por doctor para completarlas
+  // obtener las citas por doctor
   async getCitasForDoctor(doctorId: number) {
   try {
     const citas = await this.prisma.cita.findMany({
       where: {
-        doctorId: doctorId,
-        estado: "PENDIENTE" 
+        doctorId: doctorId      
       },
      
       include:{

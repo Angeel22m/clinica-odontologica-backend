@@ -163,6 +163,7 @@ enum EstadoCita {
   PENDIENTE
   COMPLETADA
   CANCELADA
+  CONFIRMADA
 }
 
 enum HorarioLaboral {

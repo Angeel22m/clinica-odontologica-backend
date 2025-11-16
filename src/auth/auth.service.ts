@@ -34,14 +34,24 @@ export class AuthService {
       }
 
       const passwordMatch = await bcrypt.compare(password, findUser.password);
-      if (!passwordMatch) {
+      if (!passwordMatch) {        
         return { message: 'Credenciales Invalidas', code: 13 };
       }
     }
 
-    // Si llega aquí, la autenticación fue exitosa
+    //verificar si es un empleado
+    const empleado = await this.prisma.empleado.findFirst({
+      where: { personaId: findUser.personaId },
+      select: { id: true },
+    });
+   
+    // Si llega aquí, la autenticación fue exitosa y quitamos password del user 
     const { password: _, ...user } = findUser;
 
+    if (empleado) {
+      user["empleadoId"] = empleado.id;
+    }
+    
     const token = this.jwtService.sign({
       id: user.id,
       correo: user.correo,

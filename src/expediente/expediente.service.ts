@@ -91,37 +91,55 @@ async create(createExpedienteDto: CreateExpedienteDto) {
     );
   }
 
- async findOne(id: number) {
-  // Buscar expediente con archivos y detalles
-  const expediente = await this.prisma.expediente.findUnique({
-    where: { id },
-    include: {
-      archivos: {
-        select: { filePath: true, id: true, nombreArchivo: true, tipoArchivo: true }
-      },
-      detalles: true,
-      doctor: {
-        select: {
-          persona: {
-            select: { nombre: true, apellido: true }
+ async findOne(id: number, idPaciente = false) {
+  
+  let expediente;
+
+  if (!idPaciente) {
+    // Buscar por ID expediente
+    expediente = await this.prisma.expediente.findUnique({
+      where: { id },
+      include: {
+        archivos: {
+          select: { filePath: true, id: true, nombreArchivo: true, tipoArchivo: true }
+        },
+        detalles: true,
+        doctor: {
+          select: {
+            persona: { select: { nombre: true, apellido: true } }
           }
-        }
-      },
-      paciente: {
-        select: { nombre: true, apellido: true }
+        },
+        paciente: { select: { nombre: true, apellido: true } }
       }
-    }
-  });
+    });
+
+  } else {
+    // Buscar por pacienteId
+    expediente = await this.prisma.expediente.findUnique({
+      where: {pacienteId:id},
+      include: {
+        archivos: {
+          select: { filePath: true, id: true, nombreArchivo: true, tipoArchivo: true }
+        },
+        detalles: true,
+        doctor: {
+          select: {
+            persona: { select: { nombre: true, apellido: true } }
+          }
+        },
+        paciente: { select: { nombre: true, apellido: true } }
+      }
+    });
+  }
 
   if (!expediente) {
     throw new NotFoundException(`Expediente con ID ${id} no encontrado`);
   }
 
-  // Generar URLs firmadas para los archivos
+  // Generar URLs firmadas
   const allFilePaths = expediente.archivos.map(a => a.filePath);
   const signedUrls = await this.storageService.generateSignedUrls(allFilePaths);
 
-  // Mapear URLs firmadas a los archivos
   const archivosConUrls = expediente.archivos.map((archivo, index) => ({
     id: archivo.id,
     url: signedUrls[index],
@@ -129,7 +147,6 @@ async create(createExpedienteDto: CreateExpedienteDto) {
     type: archivo.tipoArchivo,
   })).filter(a => a.url);
 
-  // Devolver expediente con archivos actualizados
   return {
     id: expediente.id,
     nombrePaciente: `${expediente.paciente.nombre} ${expediente.paciente.apellido}`,
@@ -142,6 +159,7 @@ async create(createExpedienteDto: CreateExpedienteDto) {
     detalles: expediente.detalles,
   };
 }
+
 
 
 //===========================================================================
@@ -329,7 +347,5 @@ async getExpedientesPorDoctor(id: number) {
   return expedienteDetalles;
 
 }
-
-async
 
 }
