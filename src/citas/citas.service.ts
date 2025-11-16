@@ -5,12 +5,23 @@ import { UpdateCitaDto } from './dto/update-cita.dto';
 import { HorarioLaboral } from '../enums/enums';
 import { Prisma } from '@prisma/client';
 
+  function normalizarHora(hora: string): string {
+    if (!hora) return "";
+    if (hora.startsWith("H")) {
+      return hora.replace("H", "").replace("_", ":");
+    }
+    return hora;
+  };
+
 @Injectable()
 export class CitasService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCitaDto: CreateCitaDto) {
     const { fecha, hora, pacienteId, doctorId, servicioId} = createCitaDto;
+    
+    const horaNormalizada = normalizarHora(hora);
+    
     const doctorExists = await this.prisma.empleado.findUnique({
       where: { id: doctorId },
     });
@@ -37,7 +48,7 @@ export class CitasService {
       where: {
         fecha: fechaConvertida,
         doctorId: doctorId,
-        hora: hora,
+        hora: horaNormalizada,
       },
     });
     if (citaExistente) {
@@ -47,7 +58,7 @@ export class CitasService {
       };
     }
     const citaPaciente = await this.prisma.cita.findFirst({
-      where: { fecha: fechaConvertida, hora, pacienteId },
+      where: { fecha: fechaConvertida, hora:horaNormalizada, pacienteId },
     });
     if (citaPaciente) {
       return {
@@ -60,6 +71,7 @@ export class CitasService {
         data: {
           ...createCitaDto,
           fecha: fechaConvertida,
+          hora: horaNormalizada,  //pruebo a guardar el formato correcto
         },
       });
       return {
