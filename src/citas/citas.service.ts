@@ -180,4 +180,30 @@ export class CitasService {
       return { message: 'Error interno del servidor', code: 500 };
     }
   }
+
+  // obtener las citas pendientes por doctor para completarlas
+  async getCitasForDoctor(doctorId: number) {
+  try {
+    const citas = await this.prisma.cita.findMany({
+      where: {
+        doctorId: doctorId,
+        estado: "PENDIENTE" 
+      },
+     
+      include:{
+        servicio:true,
+        paciente: true,        
+      }
+
+    });    
+    if (citas.length === 0) {     
+        return [];
+    }
+
+    return citas;
+  } catch (error) {  
+    console.error(`Error al obtener citas para el doctor ${doctorId}:`, error);
+    throw new Error('No se pudieron recuperar las citas debido a un error en la base de datos.');
+  }
+}
 }

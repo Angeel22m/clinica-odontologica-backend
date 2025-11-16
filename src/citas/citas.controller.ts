@@ -12,6 +12,7 @@ import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { CreateServiciosDto } from 'src/servicios/dto/create_servicios.dto';
+import { identity } from 'rxjs';
 
 @Controller('citas')
 export class CitasController {
@@ -58,5 +59,14 @@ export class CitasController {
   @ApiResponse({ status: 404, description: 'Cita no encontrada.' })
   update(@Param('id') id: number, @Body() UpdateCitaDto: UpdateCitaDto) {
     return this.citasService.update(id, UpdateCitaDto);
+  }
+
+  @Get('doctor/:id')
+  @ApiOperation({summary: 'Obtener las citas pendientes de un doctor por id'})
+  @ApiParam({name: 'id', type: Number})  
+  getCitasForDoctor(@Param('id') id: number){
+
+    return this.citasService.getCitasForDoctor(id);
+
   }
 }

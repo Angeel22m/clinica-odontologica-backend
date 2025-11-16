@@ -18,7 +18,7 @@ import { get } from 'http';
 @ApiTags('expediente')
 
 @Controller('expediente')
-//@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
+@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
 export class ExpedienteController {
   constructor(private readonly expedienteService: ExpedienteService,
               private storageService: StorageService,
@@ -34,6 +34,7 @@ export class ExpedienteController {
   }
 
   @Get()
+  @Roles("CLIENTE")
   @ApiOperation({ summary: 'Obtener todos los expedientes' })
   @ApiResponse({ status: 200, description: 'Lista de expedientes obtenida correctamente.' })
   @ApiResponse({ status: 404, description: 'No se encontraron expedientes.' })
@@ -42,6 +43,7 @@ export class ExpedienteController {
   }
 
   @Get(':id')
+  @Roles("CLIENTE")
   @ApiOperation({ summary: 'Obtener un expediente por ID' })
   @ApiResponse({ status: 200, description: 'Expediente obtenido correctamente.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
@@ -89,7 +91,7 @@ export class ExpedienteController {
   @ApiParam({ name: 'file', type: 'file', description: 'Archivo a subir' })
   @ApiResponse({ status: 201, description: 'Archivo subido y registrado correctamente.' })
   @ApiResponse({ status: 400, description: 'Error en la subida del archivo.' })
-  //@Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
+  @Roles('ADMIN', 'DOCTOR') // Define qué roles pueden subir
   @UseInterceptors(FileInterceptor('file')) // 'file' debe coincidir con la KEY en Postman/Frontend
   async upload(
     @UploadedFile() file: Express.Multer.File,
