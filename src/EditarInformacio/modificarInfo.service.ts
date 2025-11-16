@@ -8,6 +8,33 @@ export class ModificarInfoService{
     constructor (private prisma: PrismaService){}
 
 
+
+    async buscarPorCorreo(correo: string) {
+  const user = await this.prisma.user.findUnique({
+    where: { correo },
+    include: { persona: true },
+  });
+
+  // 1️⃣ Validar existencia
+  if (!user) {
+    throw new NotFoundException(
+      `No existe un usuario registrado con el correo: ${correo}`,
+    );
+  }
+
+  // 2️⃣ Validar rol (solo clientes)
+  if (user.rol !== 'CLIENTE') {
+    throw new BadRequestException(
+      `El usuario con correo ${correo} no es un cliente.`,
+    );
+  }
+
+  // 3️⃣ Retornar usuario si pasa validaciones
+  return user;
+}
+
+
+
     //Completar el expediente de la persona 
    async completarDatosPorCorreo(correo: string, data: UpdateModificarInfoDto) {
     // 1️ Buscar persona por correo
@@ -15,20 +42,6 @@ export class ModificarInfoService{
       where: { correo },
       include: { persona: true },
     });
-
-    // 2️ Validar existencia
-    if (!user) {
-      throw new NotFoundException(
-        `No existe una persona registrada con el correo: ${correo}`,
-      );
-    }
-
-    // 3️ Validar que sea cliente
-    if (!user.personaId) {
-      throw new BadRequestException(
-        `La persona con correo ${correo} no es un cliente. Solo a los clientes pueden completar datos.`,
-      );
-    }
 
     // 4️ Remover campos vacíos para evitar sobreescrituras
     const camposValidos = Object.fromEntries(
@@ -43,10 +56,21 @@ export class ModificarInfoService{
     }
 
     // 5️ Actualizar los datos faltantes
+    const { password, ...restoDeCampos } = camposValidos;
+
     const personaActualizada = await this.prisma.user.update({
       where: { correo },
-      data: camposValidos,
-    });
+      data: {
+      // Si viene password → actualiza user
+      ...(password && { password }),
+
+      // Si vienen datos para persona → actualiza persona
+      persona: {
+        update: restoDeCampos
+      }
+    }
+  });
+
 
     // 6️ Retornar resultado
     return {

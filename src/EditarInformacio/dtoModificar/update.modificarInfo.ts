@@ -1,6 +1,6 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiPropertyOptional, ApiPropertyOptions } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { IsDateString, IsOptional, IsString } from "class-validator";
 
 
 export class UpdateModificarInfoDto {
@@ -20,9 +20,9 @@ export class UpdateModificarInfoDto {
     @IsOptional()
     direccion?: string;
 
-    @IsString()
+    @IsDateString()
     @IsOptional()
-    fechaNac?: Date;
+    fechaNac?: string;
 
     @IsString()
     @IsOptional()
