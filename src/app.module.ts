@@ -6,6 +6,8 @@ import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
 import { CitasModule } from './citas/citas.module';
 import 'dotenv/config';
+import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
+
 
 
 @Module({
@@ -16,6 +18,8 @@ import 'dotenv/config';
     FirebaseModule,
     AuthModule,
     CitasModule,
+    ModificarInfoModule
+    
   ],
 })
 export class AppModule {}
