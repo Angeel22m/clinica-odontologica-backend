@@ -191,7 +191,6 @@ async getDoctoresDisponibles(fecha: string) {
 
 
 async getHorasDisponibles(doctorId: number, fecha: string) {
-  console.log(typeof doctorId);
   
   const fechaObj = new Date(fecha + 'T00:00:00Z');
   if (isNaN(fechaObj.getTime())) {
@@ -257,7 +256,6 @@ async getHorasDisponibles(doctorId: number, fecha: string) {
 
 
 
-
   async findOne(id: number) {
     const cita = await this.prisma.cita.findUnique({
       where: { id: id },
@@ -267,7 +265,7 @@ async getHorasDisponibles(doctorId: number, fecha: string) {
     }
     return cita;
   }
-
+/*
   async update(id: number, updateCitaDto: UpdateCitaDto) {
     const { fecha } = updateCitaDto;
     const cita = await this.prisma.cita.findUnique({
@@ -340,4 +338,82 @@ async getHorasDisponibles(doctorId: number, fecha: string) {
       return { message: 'Error interno del servidor', code: 500 };
     }
   }
+*/
+
+async update(id: number, updateCitaDto: UpdateCitaDto) {
+  const cita = await this.prisma.cita.findUnique({
+    where: { id },
+  });
+
+  if (!cita) return { message: 'Cita no encontrada', code: 4 };
+
+  // Normalizar hora si viene en formato "H08_00"
+  const horaNormalizada =
+    updateCitaDto.hora ? normalizarHora(updateCitaDto.hora) : null;
+  
+  //Conversion enums a array destring
+  const horariosLaborales = Object.values(HorarioLaboral).map(h => h.slice(1).replace("_",":"));
+  
+  // Validar hora si se manda
+  if (horaNormalizada && !horariosLaborales.includes(horaNormalizada)) {
+    return { message: 'Hora inválida', code: 26 };
+  }
+
+  // Validar fecha
+  let nuevaFecha: Date | null = null;
+  if (updateCitaDto.fecha) {
+    nuevaFecha = new Date(updateCitaDto.fecha);
+    if (isNaN(nuevaFecha.getTime())) {
+      return { message: 'Formato de fecha inválido', code: 23 };
+    }
+    if (nuevaFecha < new Date()) {
+      return { message: 'No se puede agendar una cita en el pasado', code: 25 };
+    }
+  }
+  // Determinar valores finales a revisar
+  const fechaCheck = nuevaFecha ?? cita.fecha;
+  const horaCheck = horaNormalizada ?? cita.hora;
+  const doctorCheck = updateCitaDto.doctorId ?? cita.doctorId;
+
+  // Validar que no exista otra cita en ese lugar
+  const conflicto = await this.prisma.cita.findFirst({
+    where: {
+      fecha: fechaCheck,
+      hora: horaCheck,
+      doctorId: doctorCheck,
+      NOT: { id },
+    },
+  });
+  if (conflicto) {
+    return {
+      message: 'El doctor ya tiene una cita en ese horario',
+      code: 24,
+    };
+  }
+  const dataToUpdate: any = {
+    ...updateCitaDto,
+  };
+  if (nuevaFecha) dataToUpdate.fecha = nuevaFecha;
+  if (horaNormalizada) dataToUpdate.hora = horaNormalizada;
+
+  const citaActualizada = await this.prisma.cita.update({
+    where: { id },
+    data: dataToUpdate,
+  });
+
+  return { message: citaActualizada, code: 0 };
+}
+
+  async cancelar(id: number) {
+    try {
+      const cita = await this.prisma.cita.update({
+        where: { id },
+        data: { estado: 'CANCELADA' }
+      });
+      return {code: 0, message: "Cita cancelada exitosamente"};
+    } catch (error) {
+      return {code: 500, message: "No se pudo cancelar la cita"};
+    }
+  }
+
 }

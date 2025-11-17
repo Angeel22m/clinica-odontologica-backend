@@ -6,7 +6,8 @@ import {
   Param,
   ParseIntPipe,
   Put,
-  Query
+  Query,
+  Patch
 } from '@nestjs/common';
 import { CitasService } from './citas.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
@@ -86,5 +87,10 @@ export class CitasController {
   @ApiResponse({ status: 404, description: 'Cita no encontrada.' })
   update(@Param('id') id: number, @Body() UpdateCitaDto: UpdateCitaDto) {
     return this.citasService.update(id, UpdateCitaDto);
+  }
+  
+  @Patch(':id/cancelar')
+  cancelarCita(@Param('id') id: number) {
+    return this.citasService.cancelar(id)
   }
 }
