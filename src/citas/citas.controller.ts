@@ -6,7 +6,8 @@ import {
   Param,
   ParseIntPipe,
   Put,
-  Query
+  Query,
+  Patch
 } from '@nestjs/common';
 import { CitasService } from './citas.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
@@ -90,11 +91,15 @@ export class CitasController {
   }
 
   @Get('doctor/:id')
-  @ApiOperation({summary: 'Obtener las citas pendientes de un doctor por id'})
+  @ApiOperation({summary: 'Obtener las citas de un doctor por id'})
   @ApiParam({name: 'id', type: Number})  
   getCitasForDoctor(@Param('id') id: number){
 
     return this.citasService.getCitasForDoctor(id);
-
+  }
+  
+  @Patch(':id/cancelar')
+  cancelarCita(@Param('id') id: number) {
+    return this.citasService.cancelar(id)
   }
 }

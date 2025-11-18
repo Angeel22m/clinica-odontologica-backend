@@ -1,12 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsInt, IsEnum } from 'class-validator';
+import { IsDateString, IsInt, IsEnum, IsString } from 'class-validator';
 import { HorarioLaboral } from '../../enums/enums';
 import { EstadoCita } from '../../enums/enums';
 
 export class CreateCitaDto {
-  @IsDateString(
-    {},
-    { message: 'La fecha debe tener un formato válido (YYYY-MM-DD)' },
+  @IsString(
   )
   fecha: string;
 

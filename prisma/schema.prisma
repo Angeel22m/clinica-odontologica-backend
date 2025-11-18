@@ -156,7 +156,6 @@ model Cita {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  @@unique([fecha, doctorId, hora]) // Un doctor solo puede tener una cita a la vez
 }
 
 enum EstadoCita {

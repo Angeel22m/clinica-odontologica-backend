@@ -1,4 +1,4 @@
-import { PrismaClient, Rol, Puesto, EstadoCita } from '@prisma/client';
+/*import { PrismaClient, Rol, Puesto, EstadoCita } from '@prisma/client';
 import { Prisma } from '@prisma/client'; 
 
 const prisma = new PrismaClient();
@@ -242,3 +242,5 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+
+  */
