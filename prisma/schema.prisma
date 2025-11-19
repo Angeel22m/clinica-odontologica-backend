@@ -88,8 +88,8 @@ model Expediente {
   id            Int      @id @default(autoincrement())
   pacienteId    Int      @unique // Solo 1 expediente por paciente
   paciente      Persona  @relation(fields: [pacienteId], references: [id])
-  doctorId      Int
-  doctor        Empleado @relation(fields: [doctorId], references: [id])
+  doctorId      Int?
+  doctor        Empleado? @relation(fields: [doctorId], references: [id])
 
   alergias      String?
   enfermedades  String?
@@ -116,8 +116,8 @@ model ExpedienteDetalle {
   tratamiento       String?
   planTratamiento   String?
 
-  doctorId          Int
-  doctor            Empleado  @relation(fields: [doctorId], references: [id])
+  doctorId          Int?
+  doctor            Empleado?  @relation(fields: [doctorId], references: [id])
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
