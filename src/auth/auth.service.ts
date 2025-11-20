@@ -131,8 +131,7 @@ export class AuthService {
       //Crear expediente
       const newExpediente = await this.prisma.expediente.create({
         data: {
-          pacienteId: newPersona.id,
-          doctorId: null, // Expediente sin doctor asignado
+          pacienteId: newPersona.id,          
           alergias: null,
           enfermedades: null,
           medicamentos: null,

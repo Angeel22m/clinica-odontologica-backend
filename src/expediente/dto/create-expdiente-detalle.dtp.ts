@@ -48,6 +48,6 @@ export class CreateExpedienteDetalleDto {
   @ApiProperty({ description: 'ID del médico (Doctor/a) que atendió el detalle.' })
   @IsOptional()
   @IsInt()
-  doctorId?: number;
+  doctorId: number;
  
 }
