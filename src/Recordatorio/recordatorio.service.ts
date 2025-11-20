@@ -9,75 +9,78 @@ export class RecordatorioService {
   private whatsappClient: Twilio;
 
   constructor(private prisma: PrismaService) {
+
     // ----- CONFIGURAR EMAIL -----
     this.emailTransporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,  // correo del sistema
-        pass: process.env.EMAIL_PASS,  // contraseña o App Password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    // ----- CONFIGURAR WHATSAPP (Twilio) -----
+    // ----- CONFIGURAR WHATSAPP -----
     this.whatsappClient = new Twilio(
       process.env.TWILIO_SID,
       process.env.TWILIO_TOKEN,
     );
   }
 
-  // -------------------------------------------------------------------------
-  // MÉTODO PRINCIPAL (LLAMADO POR CRON)
-  // -------------------------------------------------------------------------
+  // ============================================================================
+  // MÉTODO PRINCIPAL: se ejecuta con CRON
+  // ============================================================================
   async procesarRecordatorios() {
     const ahora = new Date();
-    const en24h = new Date(ahora.getTime() + 24 * 60 * 60 * 1000);
 
-    const citas = await this.prisma.cita.findMany({
-      where: {
-        estado: 'PENDIENTE',
-      },
-      include: { paciente: true },
-    });
+    // Consulta Prisma corregida para evitar TS2353 y TS2339
+  const citas = await this.prisma.cita.findMany({
+    where: { estado: 'PENDIENTE' },
+    include: {
+      paciente: true,
+    },
+  });
 
     for (const cita of citas) {
-
-       // ---- Convertir fecha y hora STRING a Date ----
+      // Convertir fecha (string) + hora (string) → Date real
       const fechaCompleta = new Date(`${cita.fecha}T${cita.hora}:00`);
+
       const diferenciaSeg = (fechaCompleta.getTime() - ahora.getTime()) / 1000;
       const horas = diferenciaSeg / 3600;
 
-      // ---- RECORDATORIO 24 HORAS ----
+      // ===== RECORDATORIO 24 HORAS =====
       if (horas <= 24 && !cita.recordatorio24h) {
-        await this.enviarRecordatorio(cita);
+        await this.enviarRecordatorio(cita, fechaCompleta);
         await this.prisma.cita.update({
           where: { id: cita.id },
-          data: { recordatorio24h: true }
+          data: { recordatorio24h: true },
         });
       }
 
-      // ---- RECORDATORIO 1 HORA ----
+      // ===== RECORDATORIO 1 HORA =====
       if (horas <= 1 && !cita.recordatorio1h) {
-        await this.enviarRecordatorio(cita);
+        await this.enviarRecordatorio(cita, fechaCompleta);
         await this.prisma.cita.update({
           where: { id: cita.id },
-          data: { recordatorio1h: true }
+          data: { recordatorio1h: true },
         });
       }
     }
   }
 
-  // -------------------------------------------------------------------------
-  // ENVIAR RECORDATORIO (EMAIL / WHATSAPP)
-  // -------------------------------------------------------------------------
-  async enviarRecordatorio(cita: any) {
+  // ============================================================================
+  // ENVIAR RECORDATORIO POR CORREO O WHATSAPP
+  // ============================================================================
+  async enviarRecordatorio(cita: any, fechaCompleta: Date) {
     const paciente = cita.paciente;
 
     const mensaje = `
-    Hola ${paciente.nombre},
-    Tienes una cita programada para el día:
-    ${cita.fechaHora.toLocaleString()}.
+Hola ${paciente.nombre},
+Te recordamos que tienes una cita programada:
 
-    Clínica Odontológica.
+ Fecha: ${fechaCompleta.toLocaleDateString()}
+ Hora: ${fechaCompleta.toLocaleTimeString()}
+
+Clínica Odontológica
     `;
 
     // ----- EMAIL -----
@@ -93,9 +96,9 @@ export class RecordatorioService {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // FUNCIONES INDIVIDUALES
-  // -------------------------------------------------------------------------
+  // ============================================================================
+  // MÉTODOS UNITARIOS DE ENVÍO
+  // ============================================================================
   async enviarCorreo(destinatario: string, mensaje: string) {
     await this.emailTransporter.sendMail({
       from: `"Clínica Odontológica" <${process.env.EMAIL_USER}>`,

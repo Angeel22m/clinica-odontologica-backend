@@ -6,7 +6,7 @@ import { RecordatorioService } from './recordatorio.service';
 export class RecordatorioCron {
   constructor(private recordatorioService: RecordatorioService) {}
 
-  @Cron('0 * * * *') // cada 1 hora, exactamente en el minuto 0
+  @Cron('* * * * *') // cada 1 minuto
   async ejecutarCron() {
     await this.recordatorioService.procesarRecordatorios();
   }
