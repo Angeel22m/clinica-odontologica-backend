@@ -41,7 +41,10 @@ export class CitasService {
       return { message: 'Formato de fecha inválido', code: 23 };
     }
     const fechaConvertida = new Date(fecha);
-    if (fechaConvertida < new Date()) {
+    const fechaActual = new Date();
+    fechaActual.setDate(fechaActual.getDate()-1);
+    
+    if (fechaConvertida < fechaActual) {
       return { message: 'No se puede agendar una cita en el pasado', code: 25 };
     }
     if (!hora || !Object.values(HorarioLaboral).includes(hora)) {
@@ -67,7 +70,6 @@ export class CitasService {
       where: { fecha: fecha, hora:horaNormalizada, pacienteId,estado:{not:"CANCELADA"} },
     });
     if (citaPaciente!==null) {
-      console.log(citaPaciente)
       return {
         
         message: 'El paciente ya tiene una cita en ese horario',
@@ -96,7 +98,6 @@ export class CitasService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        console.log(error.message)
         return {
           
           message: 'El doctor ya tiene una cita en ese horario',
@@ -361,8 +362,6 @@ async getHorasDisponibles(doctorId: number, fecha: string) {
                 
       }
 
-      
-
     });    
     if (citas.length === 0) {     
         return [];
@@ -408,7 +407,7 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
     updateCitaDto.hora ? normalizarHora(updateCitaDto.hora) : null;
   
   //Conversion enums a array destring
-  const horariosLaborales = Object.values(HorarioLaboral).map(h => h.slice(1).replace("_",":"));
+  const horariosLaborales = Object.values(HorarioLaboral).map(h => h.replace("_",":"));
   
   // Validar hora si se manda
   if (horaNormalizada && !horariosLaborales.includes(horaNormalizada)) {
@@ -422,7 +421,9 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
     if (isNaN(nuevaFecha.getTime())) {
       return { message: 'Formato de fecha inválido', code: 23 };
     }
-    if (nuevaFecha < new Date()) {
+    const fechaActual = new Date();
+    fechaActual.setDate(fechaActual.getDate()-1);
+    if (nuevaFecha < fechaActual) {
       return { message: 'No se puede agendar una cita en el pasado', code: 25 };
     }
   }
@@ -454,7 +455,11 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
 
   const citaActualizada = await this.prisma.cita.update({
     where: { id },
-    data: dataToUpdate,
+    data: {
+      fecha: updateCitaDto.fecha,
+      hora: updateCitaDto.hora,
+    },
+    //data: dataToUpdate,
   });
    // notificar al doctor sobre actualización
       this.notificationService.notifyAll("updateCitasDoctor",
