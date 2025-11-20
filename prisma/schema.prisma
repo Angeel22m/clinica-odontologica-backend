@@ -125,6 +125,8 @@ model Cita {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   hora                     String
+  recordatorio1h           Boolean                   @default(false)
+  recordatorio24h          Boolean                   @default(false)
   doctor                   Empleado                  @relation(fields: [doctorId], references: [id])
   paciente                 Persona                   @relation(fields: [pacienteId], references: [id])
   servicio                 ServicioClinico           @relation(fields: [servicioId], references: [id])
