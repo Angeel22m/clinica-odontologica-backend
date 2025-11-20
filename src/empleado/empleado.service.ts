@@ -167,12 +167,3 @@ async UpdateEmpleado(id: number, dto: Partial<UpdateEmpleadoDto>) {
 }
 
 }
-
- 
-
-
-
-
-  
-
-

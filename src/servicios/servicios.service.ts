@@ -55,7 +55,7 @@ export class ServiciosService {
       });
       return { message: nuevoServicio, code: 0 };
     } catch (error) {
-      console.error('Error al actualizar el servicio:', error);
+      console.error('Error al crear el servicio:', error);
       return { message: 'Error interno del servidor', code: 500 };
     }
   }

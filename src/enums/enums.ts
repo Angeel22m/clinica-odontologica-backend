@@ -2,6 +2,7 @@ export enum EstadoCita {
   PENDIENTE = 'PENDIENTE',
   COMPLETADA = 'COMPLETADA',
   CANCELADA = 'CANCELADA',
+  CONFIRMADA = 'CONFIRMADA',
 }
 export enum HorarioLaboral {
   H08_00 = '08:00',
