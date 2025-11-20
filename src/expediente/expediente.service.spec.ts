@@ -12,12 +12,18 @@ jest.mock('uuid', () => ({
 
 // 🔹 Mock de PrismaService
 const mockPrismaService = {
+  $transaction: jest.fn((queries) => Promise.all(queries)),
+
   expediente: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+  },
+  expedienteDoctor: {
+    create: jest.fn(),
+    findMany: jest.fn(),
   },
   expedienteDetalle: {
     findMany: jest.fn(),
@@ -84,8 +90,24 @@ describe('ExpedienteService', () => {
       const mockExpediente = {
         id: 1,
         paciente: { nombre: 'Juan', apellido: 'Perez' },
-        doctor: { persona: { nombre: 'Dr.', apellido: 'Smith' } },
-        archivos: [{ id: 1, filePath: 'path/file.pdf', nombreArchivo: 'file.pdf', tipoArchivo: 'pdf' }],
+        doctoresAsociados: [
+          {
+            doctor: {
+              persona: {
+                nombre: 'Dr.',
+                apellido: 'Smith',
+              },
+            },
+          },
+        ],
+        archivos: [
+          {
+            id: 1,
+            filePath: 'path/file.pdf',
+            nombreArchivo: 'file.pdf',
+            tipoArchivo: 'pdf',
+          },
+        ],
         detalles: [],
         alergias: 'Ninguna',
         enfermedades: 'Diabetes',
@@ -94,19 +116,27 @@ describe('ExpedienteService', () => {
       };
 
       prisma.expediente.findUnique.mockResolvedValue(mockExpediente);
-      storage.generateSignedUrls.mockResolvedValue(['https://signed-url/file.pdf']);
+      storage.generateSignedUrls.mockResolvedValue([
+        'https://signed-url/file.pdf',
+      ]);
 
       const result = await service.findOne(1);
 
       expect(result.archivos[0].url).toBe('https://signed-url/file.pdf');
-      expect(prisma.expediente.findUnique).toHaveBeenCalledWith(expect.any(Object));
-      expect(storage.generateSignedUrls).toHaveBeenCalledWith(['path/file.pdf']);
+      expect(prisma.expediente.findUnique).toHaveBeenCalledWith(
+        expect.any(Object),
+      );
+      expect(storage.generateSignedUrls).toHaveBeenCalledWith([
+        'path/file.pdf',
+      ]);
     });
 
     it('debe lanzar NotFoundException si no existe', async () => {
       prisma.expediente.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne(99)).rejects.toThrow('Expediente con ID 99 no encontrado');
+      await expect(service.findOne(99)).rejects.toThrow(
+        'Expediente con ID 99 no encontrado',
+      );
     });
   });
 
@@ -124,15 +154,48 @@ describe('ExpedienteService', () => {
     };
 
     it('debe crear un expediente si todo es válido', async () => {
+      const createDto: CreateExpedienteDto = {
+        pacienteId: 1,
+        doctorId: 2,
+        alergias: 'Ninguna',
+        enfermedades: 'Ninguna',
+        medicamentos: 'Ninguno',
+        observaciones: '',
+      };
+
+      // 1️⃣ Persona existe
       prisma.persona.findUnique.mockResolvedValue({ id: 1 });
-      prisma.expediente.findUnique.mockResolvedValue(null);
+
+      // 2️⃣ No existe expediente previo → primera llamada a findUnique
+      prisma.expediente.findUnique.mockImplementationOnce(() => null);
+
+      // 3️⃣ Doctor existe
       prisma.empleado.findUnique.mockResolvedValue({ id: 2, puesto: 'DOCTOR' });
+
+      // 4️⃣ Mock de creación en $transaction
       prisma.expediente.create.mockResolvedValue({ id: 1, ...createDto });
+      prisma.expedienteDoctor.create.mockResolvedValue({ id: 10, expedienteId: 1, doctorId: 2 });
+
+      // 5️⃣ Mock $transaction
+      prisma.$transaction.mockImplementation(async (queries) => [await queries[0], await queries[1]]);
+
+      // 6️⃣ Segunda llamada a findUnique → devolver expediente con relaciones
+      prisma.expediente.findUnique.mockImplementationOnce(() => ({
+        id: 1,
+        pacienteId: 1,
+        alergias: 'Ninguna',
+        enfermedades: 'Ninguna',
+        medicamentos: 'Ninguno',
+        observaciones: '',
+        doctoresAsociados: [{ doctor: { persona: { nombre: 'Dr.', apellido: 'Smith' } } }],
+        archivos: [],
+        detalles: [],
+      }));
 
       const result = await service.create(createDto);
 
       expect(result.id).toBe(1);
-      expect(prisma.expediente.create).toHaveBeenCalledWith({ data: createDto });
+      expect(result.doctoresAsociados.length).toBe(1);
     });
 
     it('debe lanzar NotFoundException si paciente no existe', async () => {

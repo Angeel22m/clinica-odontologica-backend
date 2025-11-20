@@ -11,9 +11,14 @@ const mockPrisma = {
     create: jest.fn(),
   },
   persona: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
     findFirst: jest.fn(),
+    create: jest.fn(),
+  },
+  empleado: {
+    findFirst: jest.fn(),
+  },
+  expediente: {
+    create: jest.fn(),
   },
 };
 
