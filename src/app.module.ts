@@ -7,7 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { CitasModule } from './citas/citas.module';
 import 'dotenv/config';
 import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
-
+import { NotificationModule } from './notificaciones/notificaciones.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 
 @Module({
@@ -18,7 +19,9 @@ import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
     FirebaseModule,
     AuthModule,
     CitasModule,
-    ModificarInfoModule
+    ModificarInfoModule,
+    NotificationModule,
+    PrismaModule
     
   ],
 })

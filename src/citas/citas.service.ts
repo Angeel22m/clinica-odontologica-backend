@@ -4,6 +4,7 @@ import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { HorarioLaboral } from '../enums/enums';
 import { Prisma } from '@prisma/client';
+import { NotificationService } from '../notificaciones/notificaciones.service';
 
   function normalizarHora(hora: string): string {
     if (!hora) return "";
@@ -15,7 +16,9 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class CitasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService,
+    private notificationService: NotificationService
+  ) {}
 
   async create(createCitaDto: CreateCitaDto) {
     const { fecha, hora, pacienteId, doctorId, servicioId} = createCitaDto;
@@ -52,8 +55,7 @@ export class CitasService {
         estado:{not:"CANCELADA"}
       },
     });
-    console.log(citaExistente)
-
+   
     if (citaExistente) {
       console.error("DEBUG: Doctor Ocupado. Se ejecutará el return.");
       return {
@@ -81,6 +83,10 @@ export class CitasService {
         },
         
       });
+
+       // notificar al doctor sobre actualización
+      this.notificationService.notifyAll("updateCitasDoctor",
+        nuevaCita.doctorId,)
       return {
         message: nuevaCita,
         code: 0,
@@ -450,6 +456,9 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
     where: { id },
     data: dataToUpdate,
   });
+   // notificar al doctor sobre actualización
+      this.notificationService.notifyAll("updateCitasDoctor",
+        cita.doctorId,)
 
   return { message: citaActualizada, code: 0 };
 }
@@ -460,6 +469,10 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
         where: { id },
         data: { estado: 'CANCELADA' }
       });
+      // notificar al doctor sobre actualización
+      this.notificationService.notifyAll("updateCitasDoctor",
+        cita.doctorId,)
+
       return {code: 0, message: "Cita cancelada exitosamente"};
     } catch (error) {
       return {code: 500, message: "No se pudo cancelar la cita"};
