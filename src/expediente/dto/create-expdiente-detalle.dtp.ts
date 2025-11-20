@@ -46,6 +46,7 @@ export class CreateExpedienteDetalleDto {
   planTratamiento?: string;
 
   @ApiProperty({ description: 'ID del médico (Doctor/a) que atendió el detalle.' })
+  @IsOptional()
   @IsInt()
   doctorId: number;
  

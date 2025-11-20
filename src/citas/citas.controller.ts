@@ -20,7 +20,9 @@ import { Prisma } from '@prisma/client';
 
 @Controller('citas')
 export class CitasController {
-  constructor(private readonly citasService: CitasService) {}
+  constructor(private readonly citasService: CitasService
+    
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo servicio.' })
@@ -99,7 +101,15 @@ export class CitasController {
   }
   
   @Patch(':id/cancelar')
-  cancelarCita(@Param('id') id: number) {
-    return this.citasService.cancelar(id)
+  async cancelarCita(
+    @Param('id') id: number,
+  ) {
+    // 1. Ejecutar la cancelación y esperar el objeto Cita
+    // La Cita devuelta contiene 'id' y 'doctorId'.
+    const citaCancelada = await this.citasService.cancelar(id);
+    
+   
+    // 3. Devolver el resultado de la operación HTTP
+    return citaCancelada;
   }
 }

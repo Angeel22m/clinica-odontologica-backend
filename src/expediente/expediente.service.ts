@@ -4,24 +4,31 @@ import { UpdateExpedienteDto } from './dto/update-expediente.dto';
 import {CreateExpedienteDetalleDto} from './dto/create-expdiente-detalle.dtp'
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../firebase/storage.service';
+import e from 'express';
 
-const expedienteInclude = {
-      paciente: {
-        select: {
-          nombre: true,
-          apellido: true,
-        },
+const expedienteInclude = {  
+    paciente: {
+      select: {
+        nombre: true,
+        apellido: true,
       },
-      doctor: {select:{
-          persona: {
-            select: {             
-              nombre: true,
-              apellido: true,
+    }, 
+    doctoresAsociados: { 
+      include: {       
+        doctor: {
+          select: {           
+            persona: {
+              select: {
+                nombre: true,
+                apellido: true,
+              },
             },
           },
         },
       },
-    }
+    },
+  }
+
 
 
 
@@ -36,7 +43,7 @@ export class ExpedienteService {
 // crea un nuevo expediente
 // ======================================================================
 async create(createExpedienteDto: CreateExpedienteDto) {
-    
+    const { doctorId, ...expedienteData } = createExpedienteDto; 
     // 1. Validar que la Persona exista (paciente)
     const personaExists = await this.prisma.persona.findUnique({
       where: { id: createExpedienteDto.pacienteId },
@@ -59,7 +66,7 @@ async create(createExpedienteDto: CreateExpedienteDto) {
     
     //Validar que el Doctor exista (Clave Foránea)
     const doctorExists = await this.prisma.empleado.findUnique({
-        where: { id: createExpedienteDto.doctorId },
+        where: { id: doctorId},
         select: { id: true, puesto: true } // Opcional: solo traer los IDs
     });
 
@@ -67,21 +74,45 @@ async create(createExpedienteDto: CreateExpedienteDto) {
         // Podrías refinar esta validación a solo chequear el ID,
         // pero es buena práctica chequear que el empleado sea realmente un doctor.
         throw new NotFoundException(
-          `No se encontró un Doctor válido con ID ${createExpedienteDto.doctorId}.`,
+          `No se encontró un Doctor válido con ID ${doctorId}.`,
         );
     }
     
     // 3. Intentar crear el Expediente
     try {
-      const expediente = await this.prisma.expediente.create({
-        data: createExpedienteDto
-      });
-      return expediente;
-    } catch (error) {
-      // 4. Manejo Genérico del Error (Solo errores inesperados)
-      // En este punto, solo deberíamos capturar errores de conexión o del servidor.
-      console.error('Error inesperado al crear expediente:', error);
-      throw new InternalServerErrorException('Error desconocido al crear el expediente. La validación previa falló o es un error de servidor.', error.message);
+          // Usamos $transaction para asegurar que ambas operaciones se ejecuten con éxito
+        // o que ambas fallen (atomicidad).
+        const [expedienteCreado] = await this.prisma.$transaction([
+            
+            // A. Crear el Expediente principal (SOLO los datos del Expediente)
+            this.prisma.expediente.create({
+                data:expedienteData
+            }),
+            
+            // B. Crear la Asociación Inicial Doctor-Expediente (en la tabla ExpedienteDoctor)
+            this.prisma.expedienteDoctor.create({
+                data: {
+                    // Usamos connect para referenciar las claves foráneas
+                    // El expediente se conecta por su identificador único (pacienteId)
+                    expediente: { connect: { pacienteId: expedienteData.pacienteId } },
+                    doctor: { connect: { id: doctorId } }
+                }
+            })
+        ]);
+        
+        // 4. Retornar el Expediente CREADO, incluyendo las nuevas relaciones
+        return this.prisma.expediente.findUnique({
+            where: { id: expedienteCreado.id },
+            // Asegúrate de usar el 'expedienteInclude' modificado que usa 'doctoresAsociados'
+            include: expedienteInclude, 
+        });
+        }
+     catch (error) {
+     // 5. Manejo Genérico del Error 
+        console.error('Error inesperado al crear expediente y/o asociación:', error);
+        throw new InternalServerErrorException(
+            'Error desconocido al crear el expediente o su relación con el doctor.', 
+            error.message);
     }
 }
 
@@ -104,29 +135,38 @@ async create(createExpedienteDto: CreateExpedienteDto) {
           select: { filePath: true, id: true, nombreArchivo: true, tipoArchivo: true }
         },
         detalles: true,
-        doctor: {
-          select: {
-            persona: { select: { nombre: true, apellido: true } }
-          }
+        doctoresAsociados: { 
+          include: {
+            doctor: {
+              select: {
+                persona: {
+                    select: { nombre: true, apellido: true }
+                }
+              }
+            },
+          },
         },
         paciente: { select: { nombre: true, apellido: true } }
       }
     });
 
   } else {
-    // Buscar por pacienteId
-    expediente = await this.prisma.expediente.findUnique({
-      where: {pacienteId:id},
+   expediente = await this.prisma.expediente.findUnique({
+      where: { pacienteId: id },
       include: {
         archivos: {
           select: { filePath: true, id: true, nombreArchivo: true, tipoArchivo: true }
         },
         detalles: true,
-        doctor: {
-          select: {
-            persona: { select: { nombre: true, apellido: true } }
-          }
-        },
+        doctoresAsociados: { 
+            include: {
+                doctor: {
+                    select: {
+                        persona: { select: { nombre: true, apellido: true } }
+                    }
+                }
+            }
+        },     
         paciente: { select: { nombre: true, apellido: true } }
       }
     });
@@ -147,10 +187,13 @@ async create(createExpedienteDto: CreateExpedienteDto) {
     type: archivo.tipoArchivo,
   })).filter(a => a.url);
 
+  const doctores = expediente.doctoresAsociados.map(assoc => ({
+    nombre: `${assoc.doctor.persona.nombre} ${assoc.doctor.persona.apellido}`,
+  }))
   return {
     id: expediente.id,
     nombrePaciente: `${expediente.paciente.nombre} ${expediente.paciente.apellido}`,
-    doctorNombre: `${expediente.doctor.persona.nombre} ${expediente.doctor.persona.apellido}`,
+    doctorNombre: doctores,
     alergias: expediente.alergias,
     enfermedades: expediente.enfermedades,
     medicamentos: expediente.medicamentos,
@@ -166,23 +209,25 @@ async create(createExpedienteDto: CreateExpedienteDto) {
 // GET: OBTENER LOS EXPEDIENTES POR DOCTOR
 //===========================================================================
 async getExpedientesPorDoctor(id: number) {
-    const expedientes = await this.prisma.expediente.findMany({
-        where: { doctorId: id },
-        include:{ doctor: {
-        select: {
-          persona: {
-            select: { nombre: true, apellido: true }
+
+  const asociaciones = await this.prisma.expedienteDoctor.findMany({
+    where:{doctorId: id},
+    select:{
+      expediente:{
+        include:{
+          paciente:{
+            select:{nombre:true, apellido:true }             
+            }
           }
         }
-      },
-      paciente: {
-        select: { nombre: true, apellido: true }
       }
-    }});
-
-    if (!expedientes || expedientes.length === 0) {
-        throw new NotFoundException('No tiene pacientes o expedientes asignados.');
     }
+  );
+    if (!asociaciones || asociaciones.length === 0){
+      throw new NotFoundException(`No tiene pacientes o expedientes asignados el doctor con ID ${id}`);
+    }
+    
+    const expedientes = asociaciones.map(assoc => assoc.expediente)
     return expedientes;
 }
 
