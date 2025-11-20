@@ -467,11 +467,11 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
     try {
       const cita = await this.prisma.cita.update({
         where: { id },
-        data: { estado: 'CANCELADA' }
+        data: { estado: 'CANCELADA' },
+        select:{doctor:{include:{persona:{select:{id:true}}}},doctorId:true}
       });
       // notificar al doctor sobre actualización
-      this.notificationService.notifyAll("updateCitasDoctor",
-        cita.doctorId,)
+      this.notificationService.notifyDoctor(cita.doctor.persona.id, "updateCitasDoctor",cita.doctorId)
 
       return {code: 0, message: "Cita cancelada exitosamente"};
     } catch (error) {

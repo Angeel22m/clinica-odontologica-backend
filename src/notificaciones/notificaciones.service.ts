@@ -22,13 +22,13 @@ export class NotificationService {
   /**
    * Envía un mensaje específico a un doctor/usuario usando su Room/Sala.
    * Esto requiere que el cliente haya sido unido a una sala en handleConnection.
-   * @param doctorId El ID del doctor al que se le envía la notificación.
+   * @param userId El ID del doctor al que se le envía la notificación.
    * @param event El nombre del evento.
    * @param data El payload del mensaje.
    */
-  notifyDoctor(doctorId: number, event: string, data: any): void {
+  notifyDoctor(userId: number, event: string, data: any): void {
     const server = this.notificationGateway.getServer();
-    const roomName = `doctor-${doctorId}`; // Asegúrate de que este nombre coincida con tu lógica en el Gateway
+    const roomName = `user-${userId}`; // Asegúrate de que este nombre coincida con tu lógica en el Gateway
     
     if (server) {
         // Usa .to() para enviar a una sala específica

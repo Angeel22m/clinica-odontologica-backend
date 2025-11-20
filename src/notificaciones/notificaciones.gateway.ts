@@ -6,45 +6,69 @@ import {
   OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 
+
+@Injectable()
 @WebSocketGateway({
-  // Asegúrate de que el puerto y las opciones sean correctas
-  // Puerto de la aplicación principal de NestJS.
+  
   cors: {
-    // Es crucial especificar el origen de tu frontend para evitar el error CORS.
-    origin: 'http://localhost:5173', // O el dominio de tu frontend en producción
+   
+    origin: 'http://localhost:5173', 
     credentials: true,
   },
 })
 export class NotificationGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  @WebSocketServer() private server: Server; // La instancia del servidor Socket.IO
+  @WebSocketServer() private server: Server;
 
-  // Método que será llamado por el NotificationService
+  constructor(private jwtService: JwtService) {}
+ 
   getServer(): Server {
     return this.server;
   }
 
   // Métodos de ciclo de vida
   afterInit(server: Server) {
-    console.log('✅ Notification Gateway inicializado.');
+    console.log('Notification Gateway inicializado.');
   }
 
-  /**
-   * Maneja la conexión de un nuevo cliente.
-   * Aquí puedes unir al cliente a una sala específica por su ID de usuario/doctor
-   * para poder enviar mensajes dirigidos (ej: solo al doctor 123).
-   */
-  handleConnection(client: Socket, ...args: any[]) {
-    console.log(` Cliente WebSocket conectado: ${client.id}`);
-    
-    // Ejemplo de cómo unir a una Sala (Room) usando el ID en el Query Params (Necesita autenticación JWT)
-    // const userId = client.handshake.query.userId as string;
-    // if (userId) {
-    //     client.join(`user-${userId}`);
-    //     console.log(`Cliente ${client.id} unido a la sala 'user-${userId}'`);
-    // }
+  async handleConnection(client: Socket, ...args: any[]) {
+    // Obtener el token de los query parameters
+    const token = client.handshake.query.token as string;
+
+    if (!token) {
+      console.log(`Conexión rechazada: Token no proporcionado. ID: ${client.id}`);
+      return client.disconnect(); // Desconectar si no hay token
+    }
+
+    try {
+      // Verificar el token JWT. Usa tu secreto configurado en JwtModule.
+      // El método 'verify' decodifica y valida la firma.
+      const payload = await this.jwtService.verifyAsync(token);
+
+      // Obtener el ID del usuario/doctor desde el payload verificado
+      // Tu AuthService usa 'id' como clave para el ID de usuario.
+      const userId = payload.id as number; 
+      
+      if (!userId) {
+        throw new Error('Payload JWT no contiene ID de usuario válido.');
+      }
+
+      // Autenticación exitosa: Unir a la sala del usuario
+      client.join(`user-${userId}`);
+      
+      console.log(`Cliente conectado y autenticado: ${client.id}`);
+      console.log(` Cliente unido a la sala 'user-${userId}'`);
+
+    } catch (error) {
+      // Si la verificación falla (token inválido, expirado, o error de decodificación)
+      console.log(`Conexión rechazada: Token no válido/expirado. ID: ${client.id}`);
+      console.log(`Detalle del error: ${error.message}`);
+      client.disconnect(); // Desconectar si el token es inválido
+    }
   }
 
   handleDisconnect(client: Socket) {
