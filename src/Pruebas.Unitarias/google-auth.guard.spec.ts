@@ -1,4 +1,4 @@
-import { GoogleAuthGuard } from './google-auth.guard';
+import { GoogleAuthGuard } from '../auth/guards/google-auth/google-auth.guard';
 
 describe('GoogleAuthGuard', () => {
   it('should be defined', () => {

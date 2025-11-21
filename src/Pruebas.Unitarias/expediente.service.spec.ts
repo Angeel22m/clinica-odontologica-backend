@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExpedienteService } from './expediente.service';
+import { ExpedienteService } from '../expediente/expediente.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../firebase/storage.service';
-import { CreateExpedienteDto } from './dto/create-expediente.dto';
-import { UpdateExpedienteDto } from './dto/update-expediente.dto';
+import { CreateExpedienteDto } from '../expediente/dto/create-expediente.dto';
+import { UpdateExpedienteDto } from '../expediente/dto/update-expediente.dto';
 
 // 🔹 Mock de uuid
 jest.mock('uuid', () => ({
@@ -176,10 +176,10 @@ describe('ExpedienteService', () => {
       prisma.expediente.create.mockResolvedValue({ id: 1, ...createDto });
       prisma.expedienteDoctor.create.mockResolvedValue({ id: 10, expedienteId: 1, doctorId: 2 });
 
-      // 5️⃣ Mock $transaction
+      // 5️ Mock $transaction
       prisma.$transaction.mockImplementation(async (queries) => [await queries[0], await queries[1]]);
 
-      // 6️⃣ Segunda llamada a findUnique → devolver expediente con relaciones
+      // 6️ Segunda llamada a findUnique → devolver expediente con relaciones
       prisma.expediente.findUnique.mockImplementationOnce(() => ({
         id: 1,
         pacienteId: 1,
@@ -194,8 +194,8 @@ describe('ExpedienteService', () => {
 
       const result = await service.create(createDto);
 
-      expect(result.id).toBe(1);
-      expect(result.doctoresAsociados.length).toBe(1);
+      expect(result?.id).toBe(1);
+      expect(result?.doctoresAsociados.length).toBe(1);
     });
 
     it('debe lanzar NotFoundException si paciente no existe', async () => {
