@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateModificarInfoDto } from './dtoModificar/update.modificarInfo';
+import * as bcrypt from 'bcrypt';
 
 type SearchCriterion = {
   correo?: string;
@@ -91,46 +92,50 @@ export class ModificarInfoService {
     return this.validateAndReturnClient({ telefono }, telefono);
   }
 
-    //Completar el expediente de la persona 
-   async completarDatosPorCorreo(correo: string, data: UpdateModificarInfoDto) {
-    // 1️ Buscar persona por correo
-    const user = await this.prisma.user.findUnique({
-      where: { correo },
-      include: { persona: true },
-    });
+    async completarDatosPorCorreo(correo: string, data: UpdateModificarInfoDto) {
+  // 1️ Buscar persona por correo
+  const user = await this.prisma.user.findUnique({
+    where: { correo },
+    include: { persona: true },
+  });
 
-    // Remover campos vacíos para evitar sobreescrituras
-    const camposValidos = Object.fromEntries(
-      Object.entries(data).filter(
-        ([_, value]) => value !== null && value !== '',
-      ),
-    );
+  // Remover campos vacíos para evitar sobreescrituras
+  const camposValidos = Object.fromEntries(
+    Object.entries(data).filter(
+      ([_, value]) => value !== null && value !== '',
+    ),
+  );
 
-    // Validación adicional
-    if (Object.keys(camposValidos).length === 0) {
-      throw new BadRequestException('No se enviaron datos para completar.');
-    }
+  // Validación adicional
+  if (Object.keys(camposValidos).length === 0) {
+    throw new BadRequestException('No se enviaron datos para completar.');
+  }
 
-    // Actualizar los datos faltantes
-    const { password, ...restoDeCampos } = camposValidos;
+  // Actualizar los datos faltantes
+  let { password, ...restoDeCampos } = camposValidos; // Usar 'let' para reasignar 'password'
 
-    const personaActualizada = await this.prisma.user.update({
-      where: { correo },
-      data: {
-      // Si viene password → actualiza user
-      ...(password && { password }),
+  // 🔑 Aplicar el hash a la contraseña si existe
+  if (password) {
+    password = await bcrypt.hash(password, 10); // Ahora 'password' tiene el hash
+  }
 
-      // Si vienen datos para persona → actualiza persona
-      persona: {
-        update: restoDeCampos
-      }
-    }
-  });
+  const personaActualizada = await this.prisma.user.update({
+    where: { correo },
+    data: {
+      // Si viene password (ahora hasheada) → actualiza user
+      ...(password && { password }),
 
-    // Retornar resultado
-    return {
-      message: 'Datos del cliente completados correctamente.',
-      personaActualizada,
-    };
-  }
+      // Si vienen datos para persona → actualiza persona
+      persona: {
+        update: restoDeCampos
+      }
+    }
+  });
+
+  // Retornar resultado
+  return {
+    message: 'Datos del cliente completados correctamente.',
+    personaActualizada,
+  };
+}
 }

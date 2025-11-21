@@ -1,15 +1,26 @@
-import { Injectable } from '@nestjs/common';
-import {  Interval } from '@nestjs/schedule';
+//src/Recordatorio/recordatorio.cron.ts
+import { Injectable, OnModuleInit } from '@nestjs/common'; 
+import { Cron, Interval } from '@nestjs/schedule';
 import { RecordatorioService } from './recordatorio.service';
 
 @Injectable()
-export class RecordatorioCron {
-  constructor(private recordatorioService: RecordatorioService) {}
+// Implementamos OnModuleInit para la ejecución al inicio
+export class RecordatorioCron /*implements OnModuleInit*/ { 
+  //constructor(private recordatorioService: RecordatorioService) {}
 
-  //@Interval(5000) // cada 1 minuto
-  //@Interval(1000*60*60*12)
+  /*async onModuleInit() {
+    console.log('--- [TEST] Ejecutando recordatorios al inicio del servidor...');
+    // Llama a tu método principal para delegar las tareas a RabbitMQ
+    await this.ejecutarCron(); 
+    console.log('--- [TEST] Finalizada la ejecución inicial.');
+  }
+
+  //@Cron('0 8,20 * * *') 
+*/
+ // @Interval(1000*60)// Cada minuto para pruebas
   async ejecutarCron() {
+    console.log('CRON: Revisando recordatorios (8 AM y 8 PM)...');
+    // Este método ya está optimizado para hacer SELECT, emit a RabbitMQ y UPDATE.
     //await this.recordatorioService.procesarRecordatorios();
   }
 }
-

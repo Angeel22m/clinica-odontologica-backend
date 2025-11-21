@@ -10,7 +10,7 @@ import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
 import { NotificationModule } from './notificaciones/notificaciones.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecordatorioModule } from './Recordatorio/recordatorio.module';
-import { ScheduleModule } from '@nestjs/schedule';
+
 
 
 @Module({
@@ -25,7 +25,6 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotificationModule,
     PrismaModule,
     RecordatorioModule,
-    ScheduleModule.forRoot(),
     
   ],
 })
