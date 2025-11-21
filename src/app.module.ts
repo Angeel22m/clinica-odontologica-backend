@@ -10,7 +10,7 @@ import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
 import { NotificationModule } from './notificaciones/notificaciones.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecordatorioModule } from './Recordatorio/recordatorio.module';
-
+import { LogsModule } from './logs/logs.module';
 
 
 @Module({
@@ -25,6 +25,7 @@ import { RecordatorioModule } from './Recordatorio/recordatorio.module';
     NotificationModule,
     PrismaModule,
     RecordatorioModule,
+    LogsModule,
     
   ],
 })

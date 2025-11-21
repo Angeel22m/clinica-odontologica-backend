@@ -85,6 +85,11 @@ export class AuthService {
 
       if (empleado) {
         user['empleadoId'] = empleado.id;
+        const newLog = await this.prisma.logs.create({
+          data: { empleadoId: empleado.id, 
+            login: new Date(), 
+            logout: null },
+        });
       }
 
       const token = this.jwtService.sign({
@@ -166,7 +171,7 @@ export class AuthService {
       //Crear expediente
       const newExpediente = await this.prisma.expediente.create({
         data: {
-          pacienteId: newPersona.id,          
+          pacienteId: newPersona.id,
           alergias: null,
           enfermedades: null,
           medicamentos: null,

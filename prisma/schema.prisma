@@ -47,6 +47,7 @@ model Empleado {
   archivosCreados      ExpedienteArchivo[]
   detalles             ExpedienteDetalle[]
   expedientesAsociados ExpedienteDoctor[]
+  logs                 Logs[]
 }
 
 model ServicioClinico {
@@ -141,6 +142,14 @@ model HistorialCancelacionCita {
   rolCancela        String   @db.VarChar(50)
   fechaCancelacion  DateTime @default(now()) @db.Timestamptz(6)
   Cita              Cita     @relation(fields: [citaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model Logs {
+  id             Int       @id @default(autoincrement())
+  empleadoId     Int
+  empleado       Empleado  @relation(fields: [empleadoId], references: [id])
+  login          DateTime  @default(now())
+  logout         DateTime?  @default(now())
 }
 
 enum Rol {
