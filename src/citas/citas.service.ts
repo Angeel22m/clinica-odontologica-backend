@@ -247,7 +247,7 @@ export class CitasService {
     const citas = await this.prisma.cita.findMany({
       where: {
         pacienteId,
-        estado: 'PENDIENTE',
+        // estado: 'PENDIENTE',
       },
       include: {
         doctor: {
