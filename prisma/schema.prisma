@@ -47,6 +47,7 @@ model Empleado {
   archivosCreados      ExpedienteArchivo[]
   detalles             ExpedienteDetalle[]
   expedientesAsociados ExpedienteDoctor[]
+  logs                 Logs[]
 }
 
 model ServicioClinico {
@@ -143,6 +144,14 @@ model HistorialCancelacionCita {
   Cita              Cita     @relation(fields: [citaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+model Logs {
+  id             Int       @id @default(autoincrement())
+  empleadoId     Int
+  empleado       Empleado  @relation(fields: [empleadoId], references: [id])
+  login          DateTime  @default(now())
+  logout         DateTime?  @default(now())
+}
+
 enum Rol {
   ADMIN
   DOCTOR
@@ -153,7 +162,7 @@ enum Rol {
 enum Puesto {
   DOCTOR
   RECEPCIONISTA
-  ADMINISTRADOR
+  ADMIN
   OTRO
 }
 

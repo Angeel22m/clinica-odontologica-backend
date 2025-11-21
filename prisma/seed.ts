@@ -96,7 +96,7 @@ async function main() {
         prisma.empleado.create({ data: { personaId: 21, puesto: Puesto.DOCTOR, salario: 25000 } }),
         prisma.empleado.create({ data: { personaId: 22, puesto: Puesto.DOCTOR, salario: 27000 } }),
         prisma.empleado.create({ data: { personaId: 23, puesto: Puesto.RECEPCIONISTA, salario: 18000 } }),
-        prisma.empleado.create({ data: { personaId: 24, puesto: Puesto.ADMINISTRADOR, salario: 30000 } }),
+        prisma.empleado.create({ data: { personaId: 24, puesto: Puesto.ADMIN, salario: 30000 } }),
         prisma.empleado.create({ data: { personaId: 25, puesto: Puesto.DOCTOR, salario: 26000 } }),
     ]);
     
