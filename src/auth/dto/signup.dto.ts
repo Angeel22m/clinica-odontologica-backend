@@ -61,8 +61,8 @@ export class SignupDto {
   @IsOptional() // PASSWORD: Ahora es opcional por el registro con Google
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
-    message: 'La contraseña debe contener al menos una letra y un número.',
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/, {
+    message: 'La contraseña debe incluir mayúscula, minúscula, número y carácter especial.',
   })
   password?: string;
 }
