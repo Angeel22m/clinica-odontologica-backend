@@ -3,9 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
 import { Twilio } from 'twilio';
 import sgMail from '@sendgrid/mail';
-import { ConfigModule } from '@nestjs/config';
-
-
 
 
 
@@ -16,17 +13,8 @@ export class RecordatorioService {
   constructor(private prisma: PrismaService) {
 
     //const sgMail = require('@sendgrid/mail')
-    sgMail.setApiKey(process.env.SENGRID_API_KEY)
-
-    // ----- CONFIGURAR EMAIL -----
-    this.emailTransporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
+    const key = process.env.SENGRID_API_KEY||'';
+    sgMail.setApiKey(key);
 
     // ----- CONFIGURAR WHATSAPP -----
     this.whatsappClient = new Twilio(
@@ -35,38 +23,19 @@ export class RecordatorioService {
     );
   }
 
-  // ============================================================================
-  // MÉTODO PRINCIPAL: se ejecuta con CRON
-  // ============================================================================
   async procesarRecordatorios() {
-
-    
-   
-
-    const ahora = new Date();
-
-
-    // Consulta Prisma corregida para evitar TS2353 y TS2339
+ // Consulta Prisma corregida para evitar TS2353 y TS2339
   const citas = await this.prisma.cita.findMany({
     where: { estado: 'PENDIENTE' },
     include: {
-
-      paciente:{include:{
-        user:{select:{
-          correo: true
-        }}
-      }}
-
-      paciente: true,
-
+      paciente:{include:{user:{select:{correo:true}}}
+    }
     },
   });
 
     for (const cita of citas) {
-
      
       const ahora = new Date();
-    
       // Convertir fecha (string) + hora (string) → Date real
       const fechaCompleta = new Date(`${cita.fecha}T${cita.hora}`);
       const partes = cita.hora.split(":")
@@ -79,20 +48,9 @@ export class RecordatorioService {
       const horas = diferenciaSeg / 3600;
       
       const horasReal = Math.floor(horas)
-      console.log(horasReal)
-      // ===== RECORDATORIO 24 HORAS =====
+      // ===== RECORDATORIO 48 HORAS =====
       if (horasReal <= 48 && horasReal >= 47 && !cita.recordatorio24h) {
-        console.log("Se llama enviar recordatorio")
-
-      // Convertir fecha (string) + hora (string) → Date real
-      const fechaCompleta = new Date(`${cita.fecha}T${cita.hora}:00`);
-
-      const diferenciaSeg = (fechaCompleta.getTime() - ahora.getTime()) / 1000;
-      const horas = diferenciaSeg / 3600;
-
-      // ===== RECORDATORIO 24 HORAS =====
-      if (horas <= 24 && !cita.recordatorio24h) {
-
+     
         await this.enviarRecordatorio(cita, fechaCompleta);
         await this.prisma.cita.update({
           where: { id: cita.id },
@@ -101,26 +59,11 @@ export class RecordatorioService {
         });
       }
 
-      // ===== RECORDATORIO 1 HORA =====
-      if (horas <= 1 && !cita.recordatorio1h) {
-        await this.enviarRecordatorio(cita, fechaCompleta);
-        await this.prisma.cita.update({
-          where: { id: cita.id },
-          data: { recordatorio1h: true },
-
-        });
-      }
     }
   }
 
-
-
-  // ============================================================================
-  // ENVIAR RECORDATORIO POR CORREO O WHATSAPP
-  // ============================================================================
   async enviarRecordatorio(cita: any, fechaCompleta: Date) {
     const paciente = cita.paciente;
-
 
   const mensaje = `<!DOCTYPE html>
 <html lang="es">
@@ -221,35 +164,28 @@ export class RecordatorioService {
     console.log("se llama SendMail");
     await this.SendMail(paciente.user.correo, "Recordatorio de cita", mensaje)
 
+  }
 
-   
-
-  // ============================================================================
-  // MÉTODOS UNITARIOS DE ENVÍO
-  // ============================================================================
-  
-  // ============================================================================
-  // MÉTODOS UNITARIOS DE ENVÍO
-  // ============================================================================
 async SendMail(to:string, subject:string, html:string){
-        const msg ={
-            to,
-            from:{
-              name: "Clínica Odontológica Identiclini",
-              email: "eduardomejia66ee@gmail.com"
-            },
-            subject,
-            html,
-        };
-        try {
-            await sgMail.send(msg)
-            console.log("Mensaje Enviado")
-            return {success:true, message:"Correo enviado"}
-            
-        } catch (error) {
-            console.error(error.message)
-            throw new Error("Error al enviar el correo")
-        }
+
+    const msg ={
+        to,
+        from:{
+          name: "Clínica Odontológica Identiclini",
+          email: "eduardomejia66ee@gmail.com"
+        },
+        subject,
+        html,
+    };
+    try {
+        await sgMail.send(msg)
+        console.log("Mensaje Enviado")
+        return {success:true, message:"Correo enviado"}
+        
+    } catch (error) {
+        console.error(error.message)
+        throw new Error("Error al enviar el correo")
+    }
     }
 
   async enviarWhatsApp(numero: string, mensaje: string) {
@@ -271,5 +207,4 @@ async SendMail(to:string, subject:string, html:string){
 }
 
 }
-}
-}
+
