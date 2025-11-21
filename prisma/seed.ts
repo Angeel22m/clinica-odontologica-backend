@@ -96,7 +96,7 @@ async function main() {
         prisma.empleado.create({ data: { personaId: 21, puesto: Puesto.DOCTOR, salario: 25000 } }),
         prisma.empleado.create({ data: { personaId: 22, puesto: Puesto.DOCTOR, salario: 27000 } }),
         prisma.empleado.create({ data: { personaId: 23, puesto: Puesto.RECEPCIONISTA, salario: 18000 } }),
-        prisma.empleado.create({ data: { personaId: 24, puesto: Puesto.ADMINISTRADOR, salario: 30000 } }),
+        prisma.empleado.create({ data: { personaId: 24, puesto: Puesto.ADMIN, salario: 30000 } }),
         prisma.empleado.create({ data: { personaId: 25, puesto: Puesto.DOCTOR, salario: 26000 } }),
     ]);
     
@@ -186,23 +186,7 @@ async function main() {
     }
     console.log(`✅ ${expedientesCreados.length * 2} Detalles de expediente creados`);
 
-    // 7️⃣ Archivos de Expediente (20 archivos)
-    for (let i = 0; i < expedientesCreados.length; i++) {
-        const expedienteId = expedientesCreados[i].id;
-        const creadoPorId = getDoctorId(i);
-        
-        await prisma.expedienteArchivo.create({
-            data: {
-                expedienteId: expedienteId,
-                nombreArchivo: `Radiografia-${i + 1}.jpg`,
-                storageName: `rad-file-${i + 1}-${generarNumero(5)}`,
-                filePath: `/files/rad-${i + 1}`,
-                tipoArchivo: 'JPEG',
-                creadoPorId: creadoPorId,
-            }
-        });
-    }
-    console.log(`✅ ${expedientesCreados.length} Archivos de expediente creados`);
+   
 
     // 8️⃣ Citas (60 registros, variedad de estados y fechas)
     for (let i = 1; i <= NUM_CLIENTES; i++) {

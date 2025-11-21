@@ -24,7 +24,7 @@ import { ScheduleModule } from "@nestjs/schedule";
                     // Nombre de la cola (debe coincidir con el Consumidor)
                     queue: 'scheduler_jobs_queue', 
                     queueOptions: {
-                        durable: false
+                        durable: true
                     },
                 },
             },

@@ -88,15 +88,27 @@ export class CitasService {
           fecha: fecha,
           hora: horaNormalizada,
             //pruebo a guardar el formato correcto
-        },include:{doctor:{include:{persona:{select:{id:true}}}}
-        , 
-      }        
-      });
+        },include:{doctor:{include:{persona:{select:{id:true}
+          ,
+      
+      
+      }
+        },
+      },paciente:{include:{expedientes:{select:{id:true}}}
+        
+      } 
+             
+      }});
 
        // notificar al doctor sobre actualización
       this.notificationService.notifyDoctor(nuevaCita.doctor.persona.id,"updateCitasDoctor",
         nuevaCita.doctorId);
-    
+        await this.prisma.expedienteDoctor.create({
+          data:{
+            doctorId:nuevaCita.doctorId,
+            expedienteId:nuevaCita.paciente.expedientes?.id || 0
+          }
+        })
       return {
         message: nuevaCita,
         code: 0,

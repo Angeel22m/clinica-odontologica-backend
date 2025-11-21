@@ -29,7 +29,7 @@ export class AuthService {
       
       const attempt = loginAttempts.get(correo)!;
       const now = Date.now();
-      console.log(now);
+     
       
       if (attempt.count >= MAX_ATTEMPTS && now - attempt.lastAttempt < BLOCK_TIME_MS) {
         const retryAfter = Math.ceil((BLOCK_TIME_MS - (now - attempt.lastAttempt)) / 1000);

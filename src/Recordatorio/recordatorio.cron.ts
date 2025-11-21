@@ -6,7 +6,9 @@ import { RecordatorioService } from './recordatorio.service';
 @Injectable()
 // Implementamos OnModuleInit para la ejecución al inicio
 export class RecordatorioCron /*implements OnModuleInit*/ { 
-  //constructor(private recordatorioService: RecordatorioService) {}
+  constructor(private recordatorioService: RecordatorioService) {
+
+  }
 
   /*async onModuleInit() {
     console.log('--- [TEST] Ejecutando recordatorios al inicio del servidor...');
@@ -17,10 +19,10 @@ export class RecordatorioCron /*implements OnModuleInit*/ {
 
   //@Cron('0 8,20 * * *') 
 */
- // @Interval(1000*60)// Cada minuto para pruebas
+  @Interval(1000*60)// Cada minuto para pruebas
   async ejecutarCron() {
     console.log('CRON: Revisando recordatorios (8 AM y 8 PM)...');
     // Este método ya está optimizado para hacer SELECT, emit a RabbitMQ y UPDATE.
-    //await this.recordatorioService.procesarRecordatorios();
+    await this.recordatorioService.procesarRecordatorios();
   }
 }
