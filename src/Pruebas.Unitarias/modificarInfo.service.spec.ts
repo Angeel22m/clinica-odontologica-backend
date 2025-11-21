@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ModificarInfoService } from './modificarInfo.service';
+import { ModificarInfoService } from '../EditarInformacio/modificarInfo.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 

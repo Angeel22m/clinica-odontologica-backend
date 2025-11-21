@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ServiciosService } from './servicios.service';
+import { ServiciosService } from '../servicios/servicios.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateServiciosDto } from './dto/create_servicios.dto';
-import { UpdateServiciosDto } from './dto/update_servicios.dto';
+import { CreateServiciosDto } from '../servicios/dto/create_servicios.dto';
+import { UpdateServiciosDto } from '../servicios/dto/update_servicios.dto';
 
 // 1. Definir el Mock para PrismaService
 // Este objeto simula la estructura que necesitamos de Prisma

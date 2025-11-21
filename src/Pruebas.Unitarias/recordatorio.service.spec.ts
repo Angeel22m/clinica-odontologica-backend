@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RecordatorioService } from './recordatorio.service';
+import { RecordatorioService } from '../Recordatorio/recordatorio.service';
 import { PrismaService } from '../prisma/prisma.service';
 import sgMail from '@sendgrid/mail';
-import { Twilio } from 'twilio';
+import Twilio from 'twilio';
+
 
 // ===== MOCKS =====
 
@@ -11,6 +12,14 @@ jest.mock('@sendgrid/mail', () => ({
   setApiKey: jest.fn(),
   send: jest.fn(),
 }));
+
+jest.mock('twilio', () => {
+  return jest.fn().mockImplementation(() => ({
+    messages: {
+      create: jest.fn().mockResolvedValue({ sid: 'mocked-sid' }),
+    },
+  }));
+});
 
 // Mock Twilio
 const twilioMock = {

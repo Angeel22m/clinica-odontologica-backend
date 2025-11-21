@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
+import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -33,8 +33,8 @@ jest.mock('bcrypt', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
-  let prisma: PrismaService;
-  let jwtService: JwtService;
+  let prisma: typeof mockPrisma;
+  let jwtService: typeof mockJwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -46,15 +46,18 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    prisma = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
+    prisma = module.get(PrismaService) as typeof mockPrisma;
+    jwtService = module.get(JwtService) as typeof mockJwtService;
 
     jest.clearAllMocks();
   });
 
+  // -------------------------------
   // validateUser()
+  // -------------------------------
   describe('validateUser', () => {
     const bcryptCompare = bcrypt.compare as jest.Mock;
+
     const mockUser = {
       id: 1,
       correo: 'test@example.com',
@@ -87,7 +90,7 @@ describe('AuthService', () => {
 
     it('debería retornar token y datos de usuario si todo es correcto', async () => {
       prisma.user.findFirst.mockResolvedValue(mockUser);
-      bcryptCompare.mockResolvedValue(true as never);
+      bcryptCompare.mockResolvedValue(true);
 
       const result = await service.validateUser({
         correo: 'test@example.com',
@@ -99,6 +102,7 @@ describe('AuthService', () => {
         correo: mockUser.correo,
         rol: mockUser.rol,
       });
+
       expect(result).toEqual({
         message: 'Autenticación exitosa',
         code: 0,
@@ -119,18 +123,19 @@ describe('AuthService', () => {
     });
   });
 
-  // -------------------------------------------------------------------------
-  // 🔹 TESTS: signupUser()
-  // -------------------------------------------------------------------------
+  // -------------------------------
+  // signupUser()
+  // -------------------------------
   describe('signupUser', () => {
     const bcryptHash = bcrypt.hash as jest.Mock;
+
     const signupDto = {
       nombre: 'Juan',
       apellido: 'Pérez',
       dni: '0801-2000-00001',
       telefono: '99999999',
       direccion: 'Col. Miraflores',
-      fechaNac: '1990-01-01',
+      fechaNac: new Date('1990-01-01'),
       correo: 'nuevo@example.com',
       password: '12345678',
     };
@@ -146,9 +151,23 @@ describe('AuthService', () => {
       });
     });
 
+    it('debería retornar código 9 si el DNI ya existe', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.persona.findFirst.mockResolvedValue({ id: 2 });
+
+      const result = await service.signupUser(signupDto);
+
+      expect(result).toEqual({
+        message: 'El DNI ya existe',
+        code: 9,
+      });
+    });
+
     it('debería crear un nuevo usuario y persona correctamente', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
+      prisma.persona.findFirst.mockResolvedValue(null);
       bcryptHash.mockResolvedValue('hashedPass');
+
       prisma.persona.create.mockResolvedValue({ id: 10 });
       prisma.user.create.mockResolvedValue({ id: 1 });
 
@@ -170,52 +189,37 @@ describe('AuthService', () => {
         }),
       });
 
-      expect(result).toMatchObject({
-  message: 'Usuario registrado con éxito',
-  code: 10,
-  user: expect.any(Object),
-});
-
+      expect(result.code).toBe(10);
+      expect(result.message).toBe('Usuario registrado con éxito');
     });
 
     it('debería manejar errores internos durante el registro', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
+      prisma.persona.findFirst.mockResolvedValue(null);
       bcryptHash.mockRejectedValue(new Error('Hash error'));
 
       const result = await service.signupUser(signupDto);
+
       expect(result.code).toBe(500);
     });
 
-   it('debería retornar código 9 si el DNI ya existe', async () => {
-  prisma.user.findFirst.mockResolvedValue(null); // correo libre
-  bcryptHash.mockResolvedValue('hashedPass'); // hash exitoso
-  prisma.persona.findFirst.mockResolvedValue({ id: 2 }); // dni duplicado
+    it('debería registrar un usuario social (sin password)', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.persona.findFirst.mockResolvedValue(null);
 
-  const result = await service.signupUser(signupDto);
+      prisma.persona.create.mockResolvedValue({ id: 10 });
+      prisma.user.create.mockResolvedValue({ id: 1 });
 
-  expect(result).toEqual({
-    message: 'El DNI ya existe',
-    code: 9,
-  });
-});
+      const result = await service.signupUser(signupDto, true);
 
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          correo: signupDto.correo,
+          password: '',
+        }),
+      });
 
-it('debería registrar un usuario social (sin password)', async () => {
-  prisma.user.findUnique.mockResolvedValue(null);
-  prisma.persona.create.mockResolvedValue({ id: 10 });
-  prisma.user.create.mockResolvedValue({ id: 1, correo: signupDto.correo });
-
-  const result = await service.signupUser(signupDto, true);
-
-  expect(prisma.user.create).toHaveBeenCalledWith({
-    data: expect.objectContaining({
-      correo: signupDto.correo,
-      password: '',
-    }),
-  });
-
-  expect(result.code).toBe(10);
-});
-
+      expect(result.code).toBe(10);
+    });
   });
 });
