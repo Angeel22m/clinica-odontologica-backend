@@ -9,6 +9,8 @@ import 'dotenv/config';
 import { ModificarInfoModule } from './EditarInformacio/modificarInfo.Module';
 import { NotificationModule } from './notificaciones/notificaciones.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RecordatorioModule } from './Recordatorio/recordatorio.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
@@ -21,7 +23,9 @@ import { PrismaModule } from './prisma/prisma.module';
     CitasModule,
     ModificarInfoModule,
     NotificationModule,
-    PrismaModule
+    PrismaModule,
+    RecordatorioModule,
+    ScheduleModule.forRoot(),
     
   ],
 })

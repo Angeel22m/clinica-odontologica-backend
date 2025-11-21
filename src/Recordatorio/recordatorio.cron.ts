@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import {  Interval } from '@nestjs/schedule';
 import { RecordatorioService } from './recordatorio.service';
 
 @Injectable()
 export class RecordatorioCron {
   constructor(private recordatorioService: RecordatorioService) {}
 
-  @Cron('0 * * * *') // cada 1 hora, exactamente en el minuto 0
-  async ejecutarCron() {
-    await this.recordatorioService.procesarRecordatorios();
+  //@Interval(5000) // cada 1 minuto
+  //@Interval(1000*60*60*12)
+  async EnviarRecordatorio() {
+   //await this.recordatorioService.procesarRecordatorios();
   }
 }
