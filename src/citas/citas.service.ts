@@ -81,14 +81,18 @@ export class CitasService {
         data: {
           ...createCitaDto,
           fecha: fecha,
-          hora: horaNormalizada,  //pruebo a guardar el formato correcto
-        },
-        
+          hora: horaNormalizada,
+            //pruebo a guardar el formato correcto
+        },include:{doctor:{include:{persona:{select:{id:true}}}}
+        , 
+      }        
       });
 
+
+
        // notificar al doctor sobre actualización
-      this.notificationService.notifyAll("updateCitasDoctor",
-        nuevaCita.doctorId,)
+      this.notificationService.notifyDoctor(nuevaCita.doctor.persona.id,"updateCitasDoctor",
+        nuevaCita.doctorId)
       return {
         message: nuevaCita,
         code: 0,
@@ -459,11 +463,12 @@ async update(id: number, updateCitaDto: UpdateCitaDto) {
       fecha: updateCitaDto.fecha,
       hora: updateCitaDto.hora,
     },
+    include:{doctor:{include:{persona:{select:{id:true}}}}},
     //data: dataToUpdate,
   });
    // notificar al doctor sobre actualización
-      this.notificationService.notifyAll("updateCitasDoctor",
-        cita.doctorId,)
+      this.notificationService.notifyDoctor(citaActualizada.doctor.persona.id,"updateCitasDoctor",
+        cita.doctorId)
 
   return { message: citaActualizada, code: 0 };
 }
