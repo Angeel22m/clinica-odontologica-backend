@@ -6,6 +6,12 @@ import { SignupDto } from './dto/signup.dto';
 import * as bcrypt from 'bcrypt';
 import e from 'express';
 
+const loginAttempts = new Map<string, {count: number; lastAttempt: number}>();
+
+const MAX_ATTEMPTS = 3;
+const BLOCK_TIME_MS = 30_000;
+
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -16,6 +22,24 @@ export class AuthService {
   async validateUser(authPayload: AuthPayloadDto, isSocial = false) {
     try {
       const { correo, password } = authPayload;
+      
+      if (!loginAttempts.has(correo)) {
+        loginAttempts.set(correo, {count: 0, lastAttempt: 0});
+      }
+      
+      const attempt = loginAttempts.get(correo)!;
+      const now = Date.now();
+      console.log(now);
+      
+      if (attempt.count >= MAX_ATTEMPTS && now - attempt.lastAttempt < BLOCK_TIME_MS) {
+        const retryAfter = Math.ceil((BLOCK_TIME_MS - (now - attempt.lastAttempt)) / 1000);
+        
+        return {
+          message: `Demasiados intentos fallidos. Intente de nuevo en ${retryAfter} segundos.`,
+          code: 99,
+          retryAfter,
+        };
+      }
 
       // Buscar el usuario por correo
       const findUser = await this.prisma.user.findFirst({
@@ -24,20 +48,31 @@ export class AuthService {
       });
 
       if (!findUser) {
+        attempt.count++;
+        attempt.lastAttempt = now;
+        
         return { message: 'Credenciales Invalidas', code: 11 };
       }
 
       // Si es login normal (no social), validar contraseña
       if (!isSocial) {
         if (!findUser.password) {
+          attempt.count++;
+          attempt.lastAttempt = now;
+          
           return { message: 'Credenciales Invalidas', code: 14 };
         }
 
         const passwordMatch = await bcrypt.compare(password, findUser.password);
         if (!passwordMatch) {
+          attempt.count++;
+          attempt.lastAttempt = now;
+        
           return { message: 'Credenciales Invalidas', code: 13 };
         }
       }
+      
+      loginAttempts.set(correo, {count:0, lastAttempt:0});
 
       //verificar si es un empleado
       const empleado = await this.prisma.empleado.findFirst({
