@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
-import { UpdateModificarInfoDto } from "./dtoModificar/update.modificarInfo";
-
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { UpdateModificarInfoDto } from './dtoModificar/update.modificarInfo';
 
 type SearchCriterion = {
   correo?: string;
@@ -10,9 +13,8 @@ type SearchCriterion = {
 };
 
 @Injectable()
-export class ModificarInfoService{
-    constructor (private prisma: PrismaService){}
-
+export class ModificarInfoService {
+  constructor(private prisma: PrismaService) {}
 
 
     /**
@@ -99,14 +101,14 @@ export class ModificarInfoService{
 
     // Remover campos vacíos para evitar sobreescrituras
     const camposValidos = Object.fromEntries(
-      Object.entries(data).filter(([_, value]) => value !== null && value !== '')
+      Object.entries(data).filter(
+        ([_, value]) => value !== null && value !== '',
+      ),
     );
 
     // Validación adicional
     if (Object.keys(camposValidos).length === 0) {
-      throw new BadRequestException(
-        'No se enviaron datos para completar.'
-      );
+      throw new BadRequestException('No se enviaron datos para completar.');
     }
 
     // Actualizar los datos faltantes
