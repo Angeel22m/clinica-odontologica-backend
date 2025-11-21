@@ -11,6 +11,7 @@ import { NotificationModule } from './notificaciones/notificaciones.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecordatorioModule } from './Recordatorio/recordatorio.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LogsModule } from './logs/logs.module';
 
 
 @Module({
@@ -26,6 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     PrismaModule,
     RecordatorioModule,
     ScheduleModule.forRoot(),
+    LogsModule,
     
   ],
 })
