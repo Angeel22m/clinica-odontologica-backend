@@ -17,6 +17,17 @@ export class RecordatorioService {
 
     //const sgMail = require('@sendgrid/mail')
     sgMail.setApiKey(process.env.SENGRID_API_KEY)
+
+    // ----- CONFIGURAR EMAIL -----
+    this.emailTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+
     // ----- CONFIGURAR WHATSAPP -----
     this.whatsappClient = new Twilio(
       process.env.TWILIO_SID,
@@ -28,22 +39,31 @@ export class RecordatorioService {
   // MÉTODO PRINCIPAL: se ejecuta con CRON
   // ============================================================================
   async procesarRecordatorios() {
+
     
    
+
+    const ahora = new Date();
+
 
     // Consulta Prisma corregida para evitar TS2353 y TS2339
   const citas = await this.prisma.cita.findMany({
     where: { estado: 'PENDIENTE' },
     include: {
+
       paciente:{include:{
         user:{select:{
           correo: true
         }}
       }}
+
+      paciente: true,
+
     },
   });
 
     for (const cita of citas) {
+
      
       const ahora = new Date();
     
@@ -63,19 +83,44 @@ export class RecordatorioService {
       // ===== RECORDATORIO 24 HORAS =====
       if (horasReal <= 48 && horasReal >= 47 && !cita.recordatorio24h) {
         console.log("Se llama enviar recordatorio")
+
+      // Convertir fecha (string) + hora (string) → Date real
+      const fechaCompleta = new Date(`${cita.fecha}T${cita.hora}:00`);
+
+      const diferenciaSeg = (fechaCompleta.getTime() - ahora.getTime()) / 1000;
+      const horas = diferenciaSeg / 3600;
+
+      // ===== RECORDATORIO 24 HORAS =====
+      if (horas <= 24 && !cita.recordatorio24h) {
+
         await this.enviarRecordatorio(cita, fechaCompleta);
         await this.prisma.cita.update({
           where: { id: cita.id },
           data: { recordatorio24h: true },
+
+        });
+      }
+
+      // ===== RECORDATORIO 1 HORA =====
+      if (horas <= 1 && !cita.recordatorio1h) {
+        await this.enviarRecordatorio(cita, fechaCompleta);
+        await this.prisma.cita.update({
+          where: { id: cita.id },
+          data: { recordatorio1h: true },
+
         });
       }
     }
   }
+
+
+
   // ============================================================================
   // ENVIAR RECORDATORIO POR CORREO O WHATSAPP
   // ============================================================================
   async enviarRecordatorio(cita: any, fechaCompleta: Date) {
     const paciente = cita.paciente;
+
 
   const mensaje = `<!DOCTYPE html>
 <html lang="es">
@@ -175,7 +220,14 @@ export class RecordatorioService {
     `;
     console.log("se llama SendMail");
     await this.SendMail(paciente.user.correo, "Recordatorio de cita", mensaje)
-  }
+
+
+   
+
+  // ============================================================================
+  // MÉTODOS UNITARIOS DE ENVÍO
+  // ============================================================================
+  
   // ============================================================================
   // MÉTODOS UNITARIOS DE ENVÍO
   // ============================================================================
@@ -218,4 +270,6 @@ async SendMail(to:string, subject:string, html:string){
   }
 }
 
+}
+}
 }

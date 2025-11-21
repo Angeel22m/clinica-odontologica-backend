@@ -8,7 +8,8 @@ export class RecordatorioCron {
 
   //@Interval(5000) // cada 1 minuto
   //@Interval(1000*60*60*12)
-  async EnviarRecordatorio() {
-   //await this.recordatorioService.procesarRecordatorios();
+  async ejecutarCron() {
+    //await this.recordatorioService.procesarRecordatorios();
   }
 }
+
