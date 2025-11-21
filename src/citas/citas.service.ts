@@ -42,7 +42,10 @@ export class CitasService {
       return { message: 'Formato de fecha inválido', code: 23 };
     }
     const fechaConvertida = new Date(fecha);
-    if (fechaConvertida < new Date()) {
+    const fechaActual = new Date();
+    fechaActual.setDate(fechaActual.getDate() - 1);
+
+    if (fechaConvertida < fechaActual) {
       return { message: 'No se puede agendar una cita en el pasado', code: 25 };
     }
     if (!hora || !Object.values(HorarioLaboral).includes(hora)) {
@@ -73,7 +76,6 @@ export class CitasService {
       },
     });
     if (citaPaciente !== null) {
-      console.log(citaPaciente);
       return {
         message: 'El paciente ya tiene una cita en ese horario',
         code: 28,
@@ -102,13 +104,12 @@ export class CitasService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        console.log(error.message);
         return {
           message: 'El doctor ya tiene una cita en ese horario',
           code: 24,
         };
       }
-      console.error(error);
+      console.error('Error al actualizar el servicio:', error);
       return { message: 'Error interno del servidor', code: 500 };
     }
   }
@@ -117,35 +118,30 @@ export class CitasService {
   async findAll(filtros: { fecha?: string }) {
     const where: any = {};
 
-    try {
-      if (filtros.fecha) {
-        const start = new Date(`${filtros.fecha}T00:00:00.000Z`);
-        start.setHours(0, 0, 0, 0);
+    if (filtros.fecha) {
+      const start = new Date(`${filtros.fecha}T00:00:00.000Z`);
+      start.setHours(0, 0, 0, 0);
 
-        const end = new Date(`${filtros.fecha}T23:59:59.999Z`);
-        end.setHours(23, 59, 59, 999);
+      const end = new Date(`${filtros.fecha}T23:59:59.999Z`);
+      end.setHours(23, 59, 59, 999);
 
-        where.fecha = {
-          gte: start,
-          lte: end,
-        };
-      }
-
-      return this.prisma.cita.findMany({
-        where,
-        include: {
-          doctor: true,
-          servicio: true,
-          paciente: true,
-        },
-        orderBy: {
-          hora: 'asc',
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      return { message: 'Error interno del servidor', code: 500 };
+      where.fecha = {
+        gte: start,
+        lte: end,
+      };
     }
+
+    return this.prisma.cita.findMany({
+      where,
+      include: {
+        doctor: true,
+        servicio: true,
+        paciente: true,
+      },
+      orderBy: {
+        hora: 'asc',
+      },
+    });
   }
 
   async getDoctoresDisponibles(fecha: string) {
@@ -158,91 +154,82 @@ export class CitasService {
     const horariosLaborales = Object.values(HorarioLaboral) as string[];
 
     // 1. Obtener doctores
-    try {
-      const doctores = await this.prisma.empleado.findMany({
-        where: {
-          puesto: 'DOCTOR',
-          activo: true,
+    const doctores = await this.prisma.empleado.findMany({
+      where: {
+        puesto: 'DOCTOR',
+        activo: true,
+      },
+      include: {
+        persona: true,
+      },
+    });
+
+    const citasDelDia = await this.prisma.cita.findMany({
+      where: {
+        fecha: {
+          gte: fechaInicio,
+          lte: fechaFin,
         },
-        include: {
-          persona: true,
-        },
-      });
+      },
+      select: {
+        doctorId: true,
+        hora: true,
+      },
+    });
 
-      const citasDelDia = await this.prisma.cita.findMany({
-        where: {
-          fecha: {
-            gte: fechaInicio,
-            lte: fechaFin,
-          },
-        },
-        select: {
-          doctorId: true,
-          hora: true,
-        },
-      });
-
-      const citasPorDoctor = new Map<number, string[]>();
-      for (const c of citasDelDia) {
-        const arr = citasPorDoctor.get(c.doctorId) ?? [];
-        arr.push(c.hora);
-        citasPorDoctor.set(c.doctorId, arr);
-      }
-
-      const disponibles: { id: number; nombre: string }[] = [];
-
-      for (const doctor of doctores) {
-        //const citasDelDoctor = citas.filter(c => c.doctorId === doctor.id);
-        const horasOcupadas = citasPorDoctor.get(doctor.id) ?? [];
-
-        const horasLibres = horariosLaborales.filter(
-          (hora) => !horasOcupadas.includes(hora),
-        );
-
-        if (horasLibres.length > 0) {
-          const nombreCompleto = doctor.persona
-            ? `${doctor.persona.nombre} ${doctor.persona.apellido ?? ''}`.trim()
-            : `Doctor ${doctor.id}`;
-
-          disponibles.push({
-            id: doctor.id,
-            nombre: nombreCompleto,
-          });
-        }
-      }
-      return disponibles;
-    } catch (error) {
-      console.error(error);
-      return { message: 'Error interno del servidor', code: 500 };
+    const citasPorDoctor = new Map<number, string[]>();
+    for (const c of citasDelDia) {
+      const arr = citasPorDoctor.get(c.doctorId) ?? [];
+      arr.push(c.hora);
+      citasPorDoctor.set(c.doctorId, arr);
     }
-  }
 
-  async getHorasDisponibles(doctorId: number, fecha: string) {
-    try {
-      const fechaInicio = fecha;
+    const disponibles: { id: number; nombre: string }[] = [];
 
-      const horariosLaborales = Object.values(HorarioLaboral);
+    for (const doctor of doctores) {
+      //const citasDelDoctor = citas.filter(c => c.doctorId === doctor.id);
+      const horasOcupadas = citasPorDoctor.get(doctor.id) ?? [];
 
-      const citas = await this.prisma.cita.findMany({
-        where: {
-          doctorId,
-          fecha: {
-            contains: fechaInicio,
-          },
-          estado: { not: 'CANCELADA' },
-        },
-      });
-      const horasOcupadas = citas.map((c) => c.hora);
-
-      const horasDisponibles = horariosLaborales.filter(
+      const horasLibres = horariosLaborales.filter(
         (hora) => !horasOcupadas.includes(hora),
       );
 
-      return horasDisponibles;
-    } catch (error) {
-      console.error(error);
-      return { message: 'Error interno del servidor', code: 500 };
+      if (horasLibres.length > 0) {
+        const nombreCompleto = doctor.persona
+          ? `${doctor.persona.nombre} ${doctor.persona.apellido ?? ''}`.trim()
+          : `Doctor ${doctor.id}`;
+
+        disponibles.push({
+          id: doctor.id,
+          nombre: nombreCompleto,
+        });
+      }
     }
+
+    return disponibles;
+  }
+
+  async getHorasDisponibles(doctorId: number, fecha: string) {
+    const fechaInicio = fecha;
+
+    const horariosLaborales = Object.values(HorarioLaboral);
+
+    const citas = await this.prisma.cita.findMany({
+      where: {
+        doctorId,
+        fecha: {
+          contains: fechaInicio,
+        },
+        estado: { not: 'CANCELADA' },
+      },
+    });
+    const horasOcupadas = citas.map((c) => c.hora);
+
+    const horasDisponibles = horariosLaborales.filter(
+      (hora) => !horasOcupadas.includes(hora),
+    );
+
+    return horasDisponibles;
   }
 
   //obteniendo citas por id del paciente
@@ -255,28 +242,23 @@ export class CitasService {
       return { message: 'Paciente no encontrado', code: 22 };
     }
 
-    try {
-      const citas = await this.prisma.cita.findMany({
-        where: {
-          pacienteId,
-          estado: 'PENDIENTE',
-        },
-        include: {
-          doctor: {
-            include: {
-              persona: true,
-            },
+    const citas = await this.prisma.cita.findMany({
+      where: {
+        pacienteId,
+        estado: 'PENDIENTE',
+      },
+      include: {
+        doctor: {
+          include: {
+            persona: true,
           },
-          servicio: true,
         },
-        orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
-      });
+        servicio: true,
+      },
+      orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
+    });
 
-      return citas;
-    } catch (error) {
-      console.error(error);
-      return { message: 'Error interno del servidor', code: 500 };
-    }
+    return citas;
   }
 
   async findOne(id: number) {
@@ -357,7 +339,7 @@ export class CitasService {
       });
       return { message: citaActualizada, code: 0 };
     } catch (error) {
-      console.error(error);
+      console.error('Error al actualizar el servicio:', error);
       return { message: 'Error interno del servidor', code: 500 };
     }
   }*/
@@ -423,7 +405,7 @@ export class CitasService {
 
     //Conversion enums a array destring
     const horariosLaborales = Object.values(HorarioLaboral).map((h) =>
-      h.slice(1).replace('_', ':'),
+      h.replace('_', ':'),
     );
 
     // Validar hora si se manda
@@ -438,52 +420,53 @@ export class CitasService {
       if (isNaN(nuevaFecha.getTime())) {
         return { message: 'Formato de fecha inválido', code: 23 };
       }
-      if (nuevaFecha < new Date()) {
+      const fechaActual = new Date();
+      fechaActual.setDate(fechaActual.getDate() - 1);
+      if (nuevaFecha < fechaActual) {
         return {
           message: 'No se puede agendar una cita en el pasado',
           code: 25,
         };
       }
     }
-    try {
-      // Determinar valores finales a revisar
-      const fechaCheck = nuevaFecha ?? cita.fecha;
-      const horaCheck = horaNormalizada ?? cita.hora;
-      const doctorCheck = updateCitaDto.doctorId ?? cita.doctorId;
+    // Determinar valores finales a revisar
+    const fechaCheck = nuevaFecha ?? cita.fecha;
+    const horaCheck = horaNormalizada ?? cita.hora;
+    const doctorCheck = updateCitaDto.doctorId ?? cita.doctorId;
 
-      // Validar que no exista otra cita en ese lugar
-      const conflicto = await this.prisma.cita.findFirst({
-        where: {
-          fecha: updateCitaDto.fecha,
-          hora: horaCheck,
-          doctorId: doctorCheck,
-          NOT: { id },
-        },
-      });
-      if (conflicto) {
-        return {
-          message: 'El doctor ya tiene una cita en ese horario',
-          code: 24,
-        };
-      }
-      const dataToUpdate: any = {
-        ...updateCitaDto,
+    // Validar que no exista otra cita en ese lugar
+    const conflicto = await this.prisma.cita.findFirst({
+      where: {
+        fecha: updateCitaDto.fecha,
+        hora: horaCheck,
+        doctorId: doctorCheck,
+        NOT: { id },
+      },
+    });
+    if (conflicto) {
+      return {
+        message: 'El doctor ya tiene una cita en ese horario',
+        code: 24,
       };
-      if (nuevaFecha) dataToUpdate.fecha = nuevaFecha;
-      if (horaNormalizada) dataToUpdate.hora = horaNormalizada;
-
-      const citaActualizada = await this.prisma.cita.update({
-        where: { id },
-        data: dataToUpdate,
-      });
-      // notificar al doctor sobre actualización
-      this.notificationService.notifyAll('updateCitasDoctor', cita.doctorId);
-
-      return { message: citaActualizada, code: 0 };
-    } catch (error) {
-      console.error(error);
-      return { message: 'Error interno del servidor', code: 500 };
     }
+    const dataToUpdate: any = {
+      ...updateCitaDto,
+    };
+    if (nuevaFecha) dataToUpdate.fecha = nuevaFecha;
+    if (horaNormalizada) dataToUpdate.hora = horaNormalizada;
+
+    const citaActualizada = await this.prisma.cita.update({
+      where: { id },
+      data: {
+        fecha: updateCitaDto.fecha,
+        hora: updateCitaDto.hora,
+      },
+      //data: dataToUpdate,
+    });
+    // notificar al doctor sobre actualización
+    this.notificationService.notifyAll('updateCitasDoctor', cita.doctorId);
+
+    return { message: citaActualizada, code: 0 };
   }
 
   async cancelar(id: number) {
@@ -497,7 +480,6 @@ export class CitasService {
 
       return { code: 0, message: 'Cita cancelada exitosamente' };
     } catch (error) {
-      console.error(error);
       return { code: 500, message: 'No se pudo cancelar la cita' };
     }
   }
