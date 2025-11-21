@@ -112,4 +112,17 @@ export class CitasController {
     // 3. Devolver el resultado de la operación HTTP
     return citaCancelada;
   }
+
+
+  @Patch(':id/confirmar')
+@ApiOperation({ summary: 'Confirmar asistencia a una cita.' })
+@ApiParam({ name: 'id', type: Number, description: 'ID de la cita a confirmar' })
+@ApiResponse({ status: 200, description: 'Cita confirmada correctamente.' })
+@ApiResponse({ status: 404, description: 'Cita no encontrada.' })
+async confirmarCita(
+  @Param('id', ParseIntPipe) id: number,
+) {
+  return this.citasService.confirmar(id);
+}
+
 }
