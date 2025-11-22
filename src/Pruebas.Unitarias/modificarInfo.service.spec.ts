@@ -124,34 +124,35 @@ describe('ModificarInfoService', () => {
   // --------------------------------------------------------------------
   // 🔹 TEST 6: Actualiza persona + password
   // --------------------------------------------------------------------
-  it('Debe actualizar persona y password cuando se envía', async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      correo: 'cliente@mail.com',
-      rol: 'CLIENTE',
-      persona: {},
-    });
-
-    prismaMock.user.update.mockResolvedValue({
-      correo: 'cliente@mail.com',
-      persona: { nombre: 'Juan' },
-      password: '12345',
-    });
-
-    const result = await service.completarDatosPorCorreo('cliente@mail.com', {
-      nombre: 'Juan',
-      password: '12345',
-    });
-
-    expect(prismaMock.user.update).toHaveBeenCalledWith({
-      where: { correo: 'cliente@mail.com' },
-      data: {
-        password: '12345',
-        persona: {
-          update: { nombre: 'Juan' },
-        },
-      },
-    });
-
-    expect(result.message).toBe('Datos del cliente completados correctamente.');
+ it('Debe actualizar persona y password cuando se envía', async () => {
+  prismaMock.user.findUnique.mockResolvedValue({
+    correo: 'cliente@mail.com',
+    rol: 'CLIENTE',
+    persona: {},
   });
+
+  prismaMock.user.update.mockResolvedValue({
+    correo: 'cliente@mail.com',
+    persona: { nombre: 'Juan' },
+    password: 'hash_mock',
+  });
+
+  const result = await service.completarDatosPorCorreo('cliente@mail.com', {
+    nombre: 'Juan',
+    password: '12345',
+  });
+
+  expect(prismaMock.user.update).toHaveBeenCalledWith({
+    where: { correo: 'cliente@mail.com' },
+    data: {
+      password: expect.any(String),  // ✔ aceptar el hash
+      persona: {
+        update: { nombre: 'Juan' },
+      },
+    },
+  });
+
+  expect(result.message).toBe('Datos del cliente completados correctamente.');
+});
+
 });

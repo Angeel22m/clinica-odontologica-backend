@@ -3,7 +3,6 @@ import { CitasService } from '../citas/citas.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notificaciones/notificaciones.service';
 import { HorarioLaboral } from '../enums/enums';
-import { EstadoCita } from '@prisma/client';
 
 describe('CitasService', () => {
   let service: CitasService;
@@ -30,6 +29,7 @@ describe('CitasService', () => {
     },
     expediente: {
       findUnique: jest.fn(),
+      upsert: jest.fn(),   // ✔ NECESARIO PARA EVITAR ERROR
     },
     $transaction: jest.fn(),
   };
@@ -44,7 +44,7 @@ describe('CitasService', () => {
       providers: [
         CitasService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: NotificationService, useValue: mockNotification }
+        { provide: NotificationService, useValue: mockNotification },
       ],
     }).compile();
 
@@ -64,11 +64,11 @@ describe('CitasService', () => {
       .split('T')[0];
 
     const dtoBase = {
-      doctorId: 1,      
+      doctorId: 1,
       pacienteId: 1,
       servicioId: 1,
       fecha: fechaFuture,
-      hora: HorarioLaboral.H08_00,
+      hora: HorarioLaboral.H08_00, // ✔ ENUM CORRECTO
     };
 
     const mockDoctor = {
@@ -96,6 +96,8 @@ describe('CitasService', () => {
 
       prisma.cita.create.mockResolvedValue(mockCitaCreada);
       prisma.cita.findFirst.mockResolvedValue(null);
+
+      prisma.expediente.upsert.mockResolvedValue({ id: 999 }); // ✔ IMPORTANTE
     });
 
     it('Debe crear una cita correctamente', async () => {
@@ -125,19 +127,21 @@ describe('CitasService', () => {
       expect(result.code).toBe(22);
     });
 
-     it('Debe fallar si la hora no pertenece al enum', async () => {
-    const dtoInvalidHour = {
-      ...dtoBase,
-      hora: '13_00' as unknown as HorarioLaboral,
-    };
-    const result = await service.create(dtoInvalidHour);
-    expect(result.code).toBe(26);
-    expect(result.message).toBe('Hora inválida');
+    it('Debe fallar si la hora no pertenece al enum', async () => {
+      const dtoInvalidHour = {
+        ...dtoBase,
+        hora: '14_00' as unknown as HorarioLaboral,
+      };
+
+      const result = await service.create(dtoInvalidHour);
+
+      expect(result.code).toBe(26);
+      expect(result.message).toBe('Hora inválida');
+    });
   });
-});
 
   // =============================================================
-  //                  GET DOCTORES DISPONIBLES
+  //                GET DOCTORES DISPONIBLES
   // =============================================================
   describe('getDoctoresDisponibles', () => {
     it('Debe retornar doctores disponibles', async () => {
@@ -157,7 +161,7 @@ describe('CitasService', () => {
   });
 
   // =============================================================
-  //                  GET HORAS DISPONIBLES
+  //                GET HORAS DISPONIBLES
   // =============================================================
   describe('getHorasDisponibles', () => {
     it('Debe retornar horas disponibles', async () => {
@@ -172,7 +176,7 @@ describe('CitasService', () => {
   });
 
   // =============================================================
-  //                 CANCELAR CITA
+  //                CANCELAR CITA
   // =============================================================
   describe('cancelar', () => {
     it('Debe cancelar una cita correctamente', async () => {
@@ -189,7 +193,7 @@ describe('CitasService', () => {
   });
 
   // =============================================================
-  //                CONFIRMAR CITA
+  //                 CONFIRMAR CITA
   // =============================================================
   describe('confirmar', () => {
     it('Debe confirmar una cita correctamente', async () => {
