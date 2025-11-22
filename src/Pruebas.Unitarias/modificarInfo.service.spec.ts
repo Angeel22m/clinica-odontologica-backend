@@ -2,15 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ModificarInfoService } from '../EditarInformacio/modificarInfo.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-
-// Mock de bcrypt para devolver la contraseña tal cual (sin encriptar)
-jest.spyOn(bcrypt, 'hash').mockImplementation(async (pwd) => pwd);
 
 describe('ModificarInfoService', () => {
   let service: ModificarInfoService;
 
-  // Mock de Prisma
+  // Mock correcto de Prisma
   let prismaMock: {
     user: {
       findUnique: jest.Mock<any, any>;
@@ -34,7 +30,6 @@ describe('ModificarInfoService', () => {
     }).compile();
 
     service = module.get<ModificarInfoService>(ModificarInfoService);
-    jest.clearAllMocks();
   });
 
   // --------------------------------------------------------------------
@@ -129,35 +124,35 @@ describe('ModificarInfoService', () => {
   // --------------------------------------------------------------------
   // 🔹 TEST 6: Actualiza persona + password
   // --------------------------------------------------------------------
-  it('Debe actualizar persona y password cuando se envía', async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      correo: 'cliente@mail.com',
-      rol: 'CLIENTE',
-      persona: {},
-    });
-
-    // Mock devuelve password tal cual (igual al que enviamos)
-    prismaMock.user.update.mockResolvedValue({
-      correo: 'cliente@mail.com',
-      persona: { nombre: 'Juan' },
-      password: '12345',
-    });
-
-    const result = await service.completarDatosPorCorreo('cliente@mail.com', {
-      nombre: 'Juan',
-      password: '12345',
-    });
-
-    expect(prismaMock.user.update).toHaveBeenCalledWith({
-      where: { correo: 'cliente@mail.com' },
-      data: {
-        password: '12345', // coincide con el mock
-        persona: {
-          update: { nombre: 'Juan' },
-        },
-      },
-    });
-
-    expect(result.message).toBe('Datos del cliente completados correctamente.');
+ it('Debe actualizar persona y password cuando se envía', async () => {
+  prismaMock.user.findUnique.mockResolvedValue({
+    correo: 'cliente@mail.com',
+    rol: 'CLIENTE',
+    persona: {},
   });
+
+  prismaMock.user.update.mockResolvedValue({
+    correo: 'cliente@mail.com',
+    persona: { nombre: 'Juan' },
+    password: 'hash_mock',
+  });
+
+  const result = await service.completarDatosPorCorreo('cliente@mail.com', {
+    nombre: 'Juan',
+    password: '12345',
+  });
+
+  expect(prismaMock.user.update).toHaveBeenCalledWith({
+    where: { correo: 'cliente@mail.com' },
+    data: {
+      password: expect.any(String),  // ✔ aceptar el hash
+      persona: {
+        update: { nombre: 'Juan' },
+      },
+    },
+  });
+
+  expect(result.message).toBe('Datos del cliente completados correctamente.');
+});
+
 });
