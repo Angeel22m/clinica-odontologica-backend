@@ -18,7 +18,7 @@ import { get } from 'http';
 @ApiTags('expediente')
 
 @Controller('expediente')
-//@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
+@UseGuards(JwtAuthGuard, RolesGuard) // Aplica los guards a todo el controlador
 export class ExpedienteController {
   constructor(private readonly expedienteService: ExpedienteService,
               private storageService: StorageService,
@@ -26,6 +26,7 @@ export class ExpedienteController {
   ) {}
 
   @Post()
+  @Roles('DOCTOR')
   @ApiOperation({ summary: 'Crear un nuevo expediente' })
   @ApiResponse({ status: 201, description: 'Expediente creado correctamente.' })
   @ApiResponse({ status: 400, description: 'Datos inválidos.' })
@@ -34,7 +35,7 @@ export class ExpedienteController {
   }
 
   @Get()
-  //@Roles("CLIENTE")
+  @Roles('ADMIN',"DOCTOR")
   @ApiOperation({ summary: 'Obtener todos los expedientes' })
   @ApiResponse({ status: 200, description: 'Lista de expedientes obtenida correctamente.' })
   @ApiResponse({ status: 404, description: 'No se encontraron expedientes.' })
@@ -43,7 +44,7 @@ export class ExpedienteController {
   }
 
   @Get(':id')
-  //@Roles("CLIENTE")
+  @Roles('ADMIN','DOCTOR','CLIENTE')
   @ApiOperation({ summary: 'Obtener un expediente por ID' })
   @ApiResponse({ status: 200, description: 'Expediente obtenido correctamente.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
@@ -52,7 +53,7 @@ export class ExpedienteController {
   }
 
     @Get('paciente/:id')
-  //@Roles("CLIENTE")
+  @Roles("CLIENTE",'ADMIN','DOCTOR')
   @ApiOperation({ summary: 'Obtener un expediente por ID del paciente' })
   @ApiResponse({ status: 200, description: 'Expediente obtenido correctamente.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
@@ -61,6 +62,7 @@ export class ExpedienteController {
   }
 
   @Put(':id')
+  @Roles('DOCTOR')
   @ApiOperation({ summary: 'Actualizar un expediente por ID' })
   @ApiResponse({ status: 200, description: 'Expediente actualizado correctamente.' })
   @ApiResponse({ status: 400, description: 'Datos inválidos.' })
@@ -84,6 +86,7 @@ export class ExpedienteController {
 // ======================================================================
 
   @Get('historial/:pacienteId')
+  @Roles('DOCTOR',"ADMIN")
   @ApiParam({ name: 'pacienteId', type: Number })
   @ApiResponse({ status: 200, description: 'Historial obtenido correctamente', type: [HistorialDetalleDto] })
   @ApiResponse({ status: 404, description: 'No se encontró historial para este paciente' })
@@ -97,6 +100,7 @@ export class ExpedienteController {
 
 
   @Post('archivo/upload')
+  @Roles('DOCTOR')
   @ApiParam({ name: 'file', type: 'file', description: 'Archivo a subir' })
   @ApiResponse({ status: 201, description: 'Archivo subido y registrado correctamente.' })
   @ApiResponse({ status: 400, description: 'Error en la subida del archivo.' })
@@ -131,7 +135,9 @@ export class ExpedienteController {
   // =======================================================================
   // DELETE: ELIMINAR ARCHIVO (Eliminar de Firebase y Prisma)
   // =======================================================================
+
   @Delete('archivo/:id')
+  @Roles('DOCTOR')
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Archivo eliminado correctamente de Firebase y Prisma.' })
   @ApiResponse({ status: 404, description: 'Archivo no encontrado.' })
@@ -147,7 +153,7 @@ export class ExpedienteController {
   //===========================================================================
 
   @Get('doctor/:id')
-
+  @Roles('DOCTOR')
   async obtenerExpedinetesPorDoctor(@Param('id',ParseIntPipe) id: number){
     return this.expedienteService.getExpedientesPorDoctor(id);
   }
@@ -155,6 +161,7 @@ export class ExpedienteController {
 
 
   @Post('detalle/:expedienteId') // <--- Ruta específica para el POST del detalle
+  @Roles('DOCTOR')
   @ApiOperation({ summary: 'Crea un nuevo detalle para un expediente existente.' })
   @ApiResponse({ status: 201, description: 'Detalle creado exitosamente.' })
   @ApiResponse({ status: 404, description: 'El expediente o doctor no existe.' })

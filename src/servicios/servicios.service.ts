@@ -60,34 +60,53 @@ export class ServiciosService {
     }
   }
 
-  async updateServicio(id: number, updateServiciosDto: UpdateServiciosDto) {
-    try {
-      const servicio = await this.prisma.servicioClinico.findUnique({
-        where: { id: id }});
-      const servicioExistente = await this.prisma.servicioClinico.findFirst({
-        where: { nombre: updateServiciosDto.nombre }});
-      if (!servicio) {
-        return { message: 'El servicio no existe', code: 4 };
-      }
-      if (servicioExistente) {
-        return { message: 'Servicio existente', code: 6 }
-      }
-      if (
-        updateServiciosDto.precio !== undefined &&
-        updateServiciosDto.precio <= 0
-      ) {
-        return { message: 'El precio debe ser mayor a cero', code: 2 };
-      }
-      const updated = await this.prisma.servicioClinico.update({
-        where: { id: id },
-        data: updateServiciosDto,
-      });
-      return { message: updated, code: 0 };
-    } catch (error) {
-      console.error('Error al actualizar el servicio:', error);
-      return { message: 'Error interno del servidor', code: 500 };
+ async updateServicio(id: number, updateServiciosDto: UpdateServiciosDto) {
+  try {
+    const servicio = await this.prisma.servicioClinico.findUnique({
+      where: { id: id },
+    });
+
+    if (!servicio) {
+      return { message: "El servicio no existe", code: 4 };
     }
+
+    // Verificar si el nombre ya existe (y no es el mismo servicio)
+    if (
+      updateServiciosDto.nombre &&
+      updateServiciosDto.nombre !== servicio.nombre
+    ) {
+      const servicioExistente = await this.prisma.servicioClinico.findFirst({
+        where: { nombre: updateServiciosDto.nombre },
+      });
+      if (servicioExistente) {
+        return { message: "Servicio existente", code: 6 };
+      }
+    }
+
+    // Validar precio si viene
+    if (
+      updateServiciosDto.precio !== undefined &&
+      updateServiciosDto.precio <= 0
+    ) {
+      return { message: "El precio debe ser mayor a cero", code: 2 };
+    }
+
+    // Filtrar solo los campos definidos
+    const dataToUpdate = Object.fromEntries(
+      Object.entries(updateServiciosDto).filter(([_, v]) => v !== undefined)
+    );
+
+    const updated = await this.prisma.servicioClinico.update({
+      where: { id: id },
+      data: dataToUpdate,
+    });
+
+    return { message: updated, code: 0 };
+  } catch (error) {
+    console.error("Error al actualizar el servicio:", error);
+    return { message: "Error interno del servidor", code: 500 };
   }
+}
 
   async deleteServicio(id: number) {
     try {

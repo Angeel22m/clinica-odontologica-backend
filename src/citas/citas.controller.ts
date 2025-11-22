@@ -17,14 +17,25 @@ import { CreateServiciosDto } from 'src/servicios/dto/create_servicios.dto';
 import { identity } from 'rxjs';
 import { HorarioLaboral } from '../enums/enums';
 import { Prisma } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard de autenticación
+import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
+import { Roles } from '../auth/roles.decorator';
+import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
+ 
 
 @Controller('citas')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class CitasController {
   constructor(private readonly citasService: CitasService
     
   ) {}
 
+
+
+  // create cita
+
   @Post()
+  @Roles('RECEPCIONISTA', 'CLIENTE')
   @ApiOperation({ summary: 'Crear un nuevo servicio.' })
   @ApiParam({ name: 'body', type: CreateServiciosDto })
   @ApiResponse({ status: 201, description: 'Servicio creado correctamente.' })
@@ -44,32 +55,45 @@ export class CitasController {
     return this.citasService.findAll({fecha});
   }
   
+
+  //get para obtener los horarios disponibles
   @Get('horarios')
+  @Roles('CLIENTE',"RECEPCIONISTA")
   getHorarios() {
     return Object.values(HorarioLaboral)
   }
 
+
+  
   @Get('doctores-disponibles')
+  @Roles('CLIENTE',"RECEPCIONISTA")
   async getDoctoresDisponibles(@Query('fecha') fecha: string) {
     return this.citasService.getDoctoresDisponibles(fecha);
   }
 
   @Get('horas-disponibles')
+  @Roles('CLIENTE',"RECEPCIONISTA")
   async getHorasDisponibles(
     @Query('doctorId') doctorId: string,
     @Query('fecha') fecha: string,
   ) {
       return this.citasService.getHorasDisponibles(Number(doctorId), fecha);
   }
-
+ 
+  // CITAS POR PACIENTE
   @Get('paciente/:pacienteId')
+  @Roles('CLIENTE', 'RECEPCIONISTA')
   async getCitasPorPaciente(
     @Param('pacienteId', ParseIntPipe) pacienteId: number
   ) {
     return this.citasService.getCitasPorPaciente(pacienteId);
   }
 
+
+  // GET: OBTENER UNA CITA POR ID
+
   @Get(':id')
+  @Roles('CLIENTE',"RECEPCIONISTA")
   @ApiOperation({ summary: 'Obtener una cita por ID.' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Cita obtenida correctamente.' })
@@ -79,6 +103,7 @@ export class CitasController {
   }
 
   @Put(':id')
+  @Roles('RECEPCIONISTA',"CLIENTE")
   @ApiOperation({ summary: 'Actualizar una cita.' })
   @ApiParam({ name: 'id', type: Number })
   @ApiParam({ name: 'body', type: UpdateCitaDto })
@@ -93,6 +118,7 @@ export class CitasController {
   }
 
   @Get('doctor/:id')
+  @Roles('DOCTOR')
   @ApiOperation({summary: 'Obtener las citas de un doctor por id'})
   @ApiParam({name: 'id', type: Number})  
   getCitasForDoctor(@Param('id') id: number){
@@ -100,7 +126,9 @@ export class CitasController {
     return this.citasService.getCitasForDoctor(id);
   }
   
+
   @Patch(':id/cancelar')
+  @Roles('CLIENTE',"RECEPCIONISTA")
   async cancelarCita(
     @Param('id') id: number,
   ) {
@@ -115,6 +143,7 @@ export class CitasController {
 
 
   @Patch(':id/confirmar')
+  @Roles('CLIENTE',"RECEPCIONISTA")
 @ApiOperation({ summary: 'Confirmar asistencia a una cita.' })
 @ApiParam({ name: 'id', type: Number, description: 'ID de la cita a confirmar' })
 @ApiResponse({ status: 200, description: 'Cita confirmada correctamente.' })

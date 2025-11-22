@@ -103,26 +103,26 @@ export class CitasService {
        // notificar al doctor sobre actualización
       this.notificationService.notifyDoctor(nuevaCita.doctor.persona.id,"updateCitasDoctor",
         nuevaCita.doctorId);
-        await this.prisma.expedienteDoctor.create({
-          data:{
-            doctorId:nuevaCita.doctorId,
-            expedienteId:nuevaCita.paciente.expedientes?.id || 0
-          }
-        })
+        await this.prisma.expedienteDoctor.upsert({
+  where: {
+    expedienteId_doctorId: {
+      expedienteId: nuevaCita.paciente.expedientes?.id || 0,
+      doctorId
+    }
+  },
+  update: {}, // no hace nada si ya existe
+  create: {
+    expedienteId: nuevaCita.paciente.expedientes?.id || 0,
+    doctorId
+  }
+});
+
       return {
         message: nuevaCita,
         code: 0,
       };
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        return {
-          message: 'El doctor ya tiene una cita en ese horario',
-          code: 24,
-        };
-      }
+      console.log(error.message);
       console.error('Error al actualizar el servicio:', error);
       return { message: 'Error interno del servidor', code: 500 };
     }
@@ -259,7 +259,7 @@ export class CitasService {
     const citas = await this.prisma.cita.findMany({
       where: {
         pacienteId,
-        // estado: 'PENDIENTE',
+         estado: { not: 'CANCELADA' },
       },
       include: {
         doctor: {

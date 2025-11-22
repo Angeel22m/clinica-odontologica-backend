@@ -1,10 +1,16 @@
-import { Controller, Get, Put, Body, BadRequestException, Param,Query } from "@nestjs/common";
+import { Controller, Get, Patch, Body, BadRequestException, Param,Query } from "@nestjs/common";
 import { ModificarInfoService } from "./modificarInfo.service";
 import { ApiResponse, ApiTags } from "@nestjs/swagger";
 import { UpdateModificarInfoDto } from "./dtoModificar/update.modificarInfo";
+import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard de autenticación
+import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
+import { Roles } from '../auth/roles.decorator';
+import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
+
 
 @ApiTags('Modificar')
 @Controller('Modificar')
+@UseGuards(JwtAuthGuard,RolesGuard)
 export class ModificadorInfoController {
     constructor(private readonly modificadorInfoService: ModificarInfoService) {}
 
@@ -12,6 +18,7 @@ export class ModificadorInfoController {
     // GET: Obtener usuario por Correo, DNI o Teléfono
     // ============================
     @Get('buscar') // Nueva ruta para ser más explícitos y usar Query
+    @Roles('RECEPCIONISTA')
     @ApiResponse({ description: "Obtener el cliente por correo, DNI o teléfono" })
     @ApiResponse({ status: 200, description: "Cliente encontrado correctamente" })
     @ApiResponse({ status: 404, description: "El cliente no existe o el criterio es inválido" })
@@ -54,7 +61,8 @@ export class ModificadorInfoController {
     // ============================
     // PUT: Completar datos por correo
     // ============================
-    @Put(':correo')
+    @Patch(':correo')
+    @Roles('RECEPCIONISTA')
     @ApiResponse({ status: 200, description: "Datos del paciente completados o actualizados correctamente" })
     @ApiResponse({ status: 404, description: "Paciente no encontrado" })
     async completarPorCorreo(

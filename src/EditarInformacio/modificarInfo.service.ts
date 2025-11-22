@@ -93,49 +93,76 @@ export class ModificarInfoService {
   }
 
     async completarDatosPorCorreo(correo: string, data: UpdateModificarInfoDto) {
-  // 1️ Buscar persona por correo
-  const user = await this.prisma.user.findUnique({
-    where: { correo },
-    include: { persona: true },
-  });
 
-  // Remover campos vacíos para evitar sobreescrituras
-  const camposValidos = Object.fromEntries(
-    Object.entries(data).filter(
-      ([_, value]) => value !== null && value !== '',
-    ),
-  );
+  // 1️ Buscar persona por correo
+  const user = await this.prisma.user.findUnique({
+    where: { correo },
+    include: { persona: true },
+  });
 
-  // Validación adicional
-  if (Object.keys(camposValidos).length === 0) {
-    throw new BadRequestException('No se enviaron datos para completar.');
-  }
+  if (!user) {
+    throw new BadRequestException("Usuario no encontrado.");
+  }
 
-  // Actualizar los datos faltantes
-  let { password, ...restoDeCampos } = camposValidos; // Usar 'let' para reasignar 'password'
+  // 2️ Filtrar campos válidos (solo los que vienen con valor)
+  const camposValidos = Object.fromEntries(
+    Object.entries(data).filter(
+      ([_, value]) => value !== null && value !== '' && value !== undefined,
+    ),
+  );
 
-  // 🔑 Aplicar el hash a la contraseña si existe
-  if (password) {
-    password = await bcrypt.hash(password, 10); // Ahora 'password' tiene el hash
-  }
+  if (Object.keys(camposValidos).length === 0) {
+    throw new BadRequestException('No se enviaron datos para actualizar.');
+  }
 
-  const personaActualizada = await this.prisma.user.update({
-    where: { correo },
-    data: {
-      // Si viene password (ahora hasheada) → actualiza user
-      ...(password && { password }),
+  // 3️ Validar teléfono si viene
+  if (camposValidos.telefono) {
+    const existeTel = await this.prisma.persona.findFirst({
+      where: {
+        telefono: camposValidos.telefono,
+        NOT: { id: user.persona.id }, // Evitar conflicto con el mismo usuario
+      },
+    });
+    if (existeTel) {
+      throw new BadRequestException('El teléfono ya está en uso por otro usuario.');
+    }
+  }
 
-      // Si vienen datos para persona → actualiza persona
-      persona: {
-        update: restoDeCampos
-      }
-    }
-  });
+  // 4️ Validar DNI si viene
+  if (camposValidos.dni) {
+    const existeDni = await this.prisma.persona.findFirst({
+      where: {
+        dni: camposValidos.dni,
+        NOT: { id: user.persona.id }, 
+      },
+    });
+    if (existeDni) {
+      throw new BadRequestException('El DNI ya está en uso por otro usuario.');
+    }
+  }
 
-  // Retornar resultado
-  return {
-    message: 'Datos del cliente completados correctamente.',
-    personaActualizada,
-  };
+  // 5️ Manejar password por separado
+  let { password, ...restoDeCamposPersona } = camposValidos;
+
+  if (password) {
+    password = await bcrypt.hash(password, 10);
+  }
+
+  // 6️ Actualizar
+  const personaActualizada = await this.prisma.user.update({
+    where: { correo },
+    data: {
+      ...(password && { password }), // Actualiza password solo si viene
+      persona: {
+        update: restoDeCamposPersona, // Solo los campos válidos
+      }
+    }
+  });
+
+  return {
+    message: 'Datos del cliente completados correctamente.',
+    personaActualizada,
+  };
 }
+
 }
