@@ -2,11 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ModificarInfoService } from '../EditarInformacio/modificarInfo.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+
+// Mock de bcrypt para devolver la contraseña tal cual (sin encriptar)
+jest.spyOn(bcrypt, 'hash').mockImplementation(async (pwd) => pwd);
 
 describe('ModificarInfoService', () => {
   let service: ModificarInfoService;
 
-  // Mock correcto de Prisma
+  // Mock de Prisma
   let prismaMock: {
     user: {
       findUnique: jest.Mock<any, any>;
@@ -30,6 +34,7 @@ describe('ModificarInfoService', () => {
     }).compile();
 
     service = module.get<ModificarInfoService>(ModificarInfoService);
+    jest.clearAllMocks();
   });
 
   // --------------------------------------------------------------------
@@ -131,6 +136,7 @@ describe('ModificarInfoService', () => {
       persona: {},
     });
 
+    // Mock devuelve password tal cual (igual al que enviamos)
     prismaMock.user.update.mockResolvedValue({
       correo: 'cliente@mail.com',
       persona: { nombre: 'Juan' },
@@ -145,7 +151,7 @@ describe('ModificarInfoService', () => {
     expect(prismaMock.user.update).toHaveBeenCalledWith({
       where: { correo: 'cliente@mail.com' },
       data: {
-        password: '12345',
+        password: '12345', // coincide con el mock
         persona: {
           update: { nombre: 'Juan' },
         },

@@ -20,7 +20,7 @@ export class CitasService {
     private prisma: PrismaService,
     private notificationService: NotificationService,
   ) {}
-
+ 
   async create(createCitaDto: CreateCitaDto) {
     const { fecha, hora, pacienteId, doctorId, servicioId } = createCitaDto;
 
