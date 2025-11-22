@@ -1,0 +1,12 @@
+-- CreateTable
+CREATE TABLE "Logs" (
+    "id" SERIAL NOT NULL,
+    "empleadoId" INTEGER NOT NULL,
+    "login" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "logout" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Logs_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "Logs" ADD CONSTRAINT "Logs_empleadoId_fkey" FOREIGN KEY ("empleadoId") REFERENCES "Empleado"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -4,6 +4,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthPayloadDto } from './dto/auth.dto';
 import { SignupDto } from './dto/signup.dto';
 import * as bcrypt from 'bcrypt';
+import e from 'express';
+
+const loginAttempts = new Map<string, {count: number; lastAttempt: number}>();
+
+const MAX_ATTEMPTS = 3;
+const BLOCK_TIME_MS = 30_000;
+
 
 @Injectable()
 export class AuthService {
@@ -12,28 +19,85 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(authPayload: AuthPayloadDto) {
+  async validateUser(authPayload: AuthPayloadDto, isSocial = false) {
     try {
       const { correo, password } = authPayload;
+      
+      if (!loginAttempts.has(correo)) {
+        loginAttempts.set(correo, {count: 0, lastAttempt: 0});
+      }
+      
+      const attempt = loginAttempts.get(correo)!;
+      const now = Date.now();
+     
+      
+      if (attempt.count >= MAX_ATTEMPTS && now - attempt.lastAttempt < BLOCK_TIME_MS) {
+        const retryAfter = Math.ceil((BLOCK_TIME_MS - (now - attempt.lastAttempt)) / 1000);
+        
+        return {
+          message: `Demasiados intentos fallidos. Intente de nuevo en ${retryAfter} segundos.`,
+          code: 99,
+          retryAfter,
+        };
+      }
 
+      // Buscar el usuario por correo
       const findUser = await this.prisma.user.findFirst({
-        where: { correo: correo },
+        where: { correo },
+        include: { persona: true }, // opcional: incluye datos de la persona
       });
+
       if (!findUser) {
-        return { message: 'Usuario no encontrado', code: 11 };
-      }
-      const passwordMatch = await bcrypt.compare(password, findUser.password);
-      if (!passwordMatch) {
-        return { message: 'Credenciales erróneas.', code: 13 };
+        attempt.count++;
+        attempt.lastAttempt = now;
+        
+        return { message: 'Credenciales Invalidas', code: 11 };
       }
 
+      // Si es login normal (no social), validar contraseña
+      if (!isSocial) {
+        if (!findUser.password) {
+          attempt.count++;
+          attempt.lastAttempt = now;
+          
+          return { message: 'Credenciales Invalidas', code: 14 };
+        }
+
+        const passwordMatch = await bcrypt.compare(password, findUser.password);
+        if (!passwordMatch) {
+          attempt.count++;
+          attempt.lastAttempt = now;
+        
+          return { message: 'Credenciales Invalidas', code: 13 };
+        }
+      }
+      
+      loginAttempts.set(correo, {count:0, lastAttempt:0});
+
+      //verificar si es un empleado
+      const empleado = await this.prisma.empleado.findFirst({
+        where: { personaId: findUser.personaId },
+        select: { id: true },
+      });
+
+      // Si llega aquí, la autenticación fue exitosa y quitamos password del user
       const { password: _, ...user } = findUser;
+
+      if (empleado) {
+        user['empleadoId'] = empleado.id;
+        const newLog = await this.prisma.logs.create({
+          data: { empleadoId: empleado.id, 
+            login: new Date(), 
+            logout: null },
+        });
+      }
 
       const token = this.jwtService.sign({
         id: user.id,
         correo: user.correo,
         rol: user.rol,
       });
+
       return { message: 'Autenticación exitosa', code: 0, token, user };
     } catch (error) {
       console.error('Error al validar usuario:', error);
@@ -41,7 +105,7 @@ export class AuthService {
     }
   }
 
-  async signupUser(signupDto: SignupDto) {
+  async signupUser(signupDto: SignupDto, isSocial = false) {
     const {
       nombre,
       apellido,
@@ -52,42 +116,119 @@ export class AuthService {
       correo,
       password,
     } = signupDto;
-    console.log(signupDto.dni);
-    const dniExists = await this.prisma.persona.findUnique({
-      where: { dni }
-    });
-    const emailExists = await this.prisma.user.findUnique({
-      where: { correo },
-    });
-    if (dniExists) {
-      return {message: 'El dni ya existe', code: 9};
-      }
-    if (emailExists) {
-      return { message: 'El correo ya está registrado', code: 12 };
-    }
+
     try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      
+      // Validar correo
+      const emailExists = await this.prisma.user.findUnique({
+        where: { correo },
+      });
+      if (emailExists) {
+        return { message: 'El correo ya está registrado', code: 12 };
+      }
+
+      // Validar contraseña y DNI
+      let hashedPassword: string | null = null;
+
+      if (!isSocial) {
+        if (!password) {
+          return { message: 'La contraseña es requerida.', code: 13 };
+        }
+
+        hashedPassword = await bcrypt.hash(password, 10);
+
+        if (dni) {
+          const dniExists = await this.prisma.persona.findFirst({
+            where: { dni },
+          });
+
+          if (dniExists) {
+            return { message: 'El DNI ya existe', code: 9 };
+          }
+        }
+      }
+
+      // Crear persona
       const newPersona = await this.prisma.persona.create({
         data: {
           nombre,
-          apellido,
-          dni,
+          apellido: apellido,
+          dni: dni || null,
           telefono: telefono || null,
           direccion: direccion || null,
           fechaNac: fechaNac ? new Date(fechaNac) : null,
         },
       });
+
+      // Crear usuario
       const newUser = await this.prisma.user.create({
         data: {
           correo,
-          password: await hashedPassword,
+          password: hashedPassword || '',
           personaId: newPersona.id,
         },
       });
-      return { message: 'Usuario registrado con éxito', code: 10 };
+
+      //Crear expediente
+      const newExpediente = await this.prisma.expediente.create({
+        data: {
+          pacienteId: newPersona.id,
+          alergias: null,
+          enfermedades: null,
+          medicamentos: null,
+          observaciones: null,
+          activo: true,
+        },
+      });
+
+      return {
+        message: 'Usuario registrado con éxito',
+        code: 10,
+        user: newUser,
+        expediente: newExpediente,
+      };
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error en signupUser:', error);
+      return { message: 'Error interno del servidor', code: 500 };
+    }
+  }
+  async validateGoogleUser(googleUser: SignupDto) {
+    try {
+      // Verificar si el usuario ya existe
+      const existingUser = await this.prisma.user.findUnique({
+        where: { correo: googleUser.correo },
+      });
+
+      if (existingUser) {
+        // Usuario existente → reutilizar validateUser con isSocial = true
+        return await this.validateUser(
+          { correo: existingUser.correo, password: '' },
+          true,
+        );
+      }
+
+      // Usuario no existe → registrar como social
+      const signupPayload: SignupDto = {
+        correo: googleUser.correo,
+        nombre: googleUser.nombre || '',
+        apellido: googleUser.apellido || '',
+      };
+
+      const signupResult = await this.signupUser(signupPayload, true);
+
+      if (signupResult.code !== 10 || !signupResult.user) {
+        // Falló el registro
+        return signupResult;
+      }
+
+      const newUser = signupResult.user;
+
+      // Generar token y respuesta unificada
+      return await this.validateUser(
+        { correo: newUser.correo, password: '' },
+        true,
+      );
+    } catch (error) {
+      console.error('Error en validateGoogleUser:', error);
       return { message: 'Error interno del servidor', code: 500 };
     }
   }

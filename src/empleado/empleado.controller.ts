@@ -3,11 +3,15 @@ import { EmpleadoService } from './empleado.service';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateEmpleadoDto } from './dtoempleado/create-empleado.dto';
 import { UpdateEmpleadoDto } from './dtoempleado/update-empleado.dto';
-
+import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard de autenticación
+import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
+import { Roles } from '../auth/roles.decorator';
+import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 
 
 @ApiTags('Empleado')
 @Controller('empleado')
+@UseGuards(JwtAuthGuard,RolesGuard)
 export class EmpleadoController {
   constructor(private readonly empleadoService: EmpleadoService) {}
  
@@ -15,6 +19,7 @@ export class EmpleadoController {
 // Crear empleado
 // src/empleado/empleado.controller.ts
 @Post()
+@Roles('ADMIN')
 @ApiResponse({ status: 201, description: 'Persona, empleado y usuario creados correctamente' })
 @ApiResponse({ status: 400, description: 'Error al crear los registros' })
 async create(@Body() dto: CreateEmpleadoDto) {
@@ -33,6 +38,7 @@ async create(@Body() dto: CreateEmpleadoDto) {
 
 // Obtener todos los empleados (con Persona y Usuario)
 @Get()
+@Roles('ADMIN')
 @ApiResponse({ description: 'Obtener todos los empleados registrados con sus datos personales y de usuario' })
 async findAll() {
   const empleados = await this.empleadoService.findAllCompleto();
@@ -46,6 +52,7 @@ async findAll() {
 
 // Obtener un empleado por ID
 @Get(':id')
+@Roles('ADMIN')
 @ApiResponse({ description: 'Obtener un empleado por ID' })
 @ApiResponse({ status: 200, description: 'Empleado encontrado correctamente' })
 @ApiResponse({ status: 404, description: 'Empleado no encontrado' })
@@ -67,6 +74,7 @@ async findOne(@Param('id', ParseIntPipe) id: number) {
 
 // Actualizar empleado
 @Put(':id')
+@Roles('ADMIN')
 @ApiResponse({ status: 200, description: 'Persona, empleado y usuario actualizados correctamente' })
 @ApiResponse({ status: 404, description: 'Empleado no encontrado' })
 async update(
