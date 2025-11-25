@@ -1,5 +1,5 @@
 import { PrismaClient, Rol, Puesto, EstadoCita, Prisma } from '@prisma/client';
-import { addDays } from 'date-fns'; // Importamos addDays para generar fechas futuras
+import { addDays, addMinutes } from 'date-fns'; // Importamos addMinutes para la expiración del código
 
 const prisma = new PrismaClient();
 // Tipo genérico para el resultado de create
@@ -25,15 +25,18 @@ function randomHora(): string {
     return `${String(h).padStart(2, '0')}:${m}`;
 }
 
+// Función auxiliar simple para generar números aleatorios (para CAI y Factura)
+function generarNumero(length: number): string {
+    return Array.from({ length }, () => Math.floor(Math.random() * 10)).join('');
+}
+
 
 async function main() {
     console.log('🌱 Iniciando carga de datos para el seeder corregido...');
 
     // --- CONFIGURACIÓN BASE ---
     const NUM_CLIENTES = 20; 
-    // Usamos el año actual para las citas de prueba
     const BASE_DATE = new Date(); 
-    const BASE_YEAR = BASE_DATE.getFullYear(); 
 
     const expedientesCreados: ExpedienteResult[] = []; 
     const usersData: Prisma.UserCreateManyInput[] = []; 
@@ -74,33 +77,52 @@ async function main() {
     console.log(`✅ ${personasData.length} Personas creadas`);
 
 
-    // 2️⃣ Usuarios (25 registros)
+    // 2️⃣ Usuarios (25 registros) y Códigos de Verificación
     // Clientes
     for (let i = 1; i <= NUM_CLIENTES; i++) {
-        // Asumiendo que el hash del password es fijo para este seeder
-        usersData.push({ correo: `c${i}@mail.com`, password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.CLIENTE, personaId: i });
+        const isVerified = i % 4 !== 0; // 75% verificados
+        usersData.push({ 
+            correo: `c${i}@mail.com`, 
+            password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', 
+            rol: Rol.CLIENTE, 
+            personaId: i,
+            verificado: isVerified
+        });
     }
     // Empleados 
-    usersData.push({ correo: 'laura@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 21 });
-    usersData.push({ correo: 'miguel@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 22 });
-    usersData.push({ correo: 'claudia@recep.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.RECEPCIONISTA, personaId: 23 });
-    usersData.push({ correo: 'roberto@admin.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.ADMIN, personaId: 24 });
-    usersData.push({ correo: 'elena@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 25 });
+    usersData.push({ correo: 'laura@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 21, verificado: true });
+    usersData.push({ correo: 'miguel@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 22, verificado: true });
+    usersData.push({ correo: 'claudia@recep.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.RECEPCIONISTA, personaId: 23, verificado: true });
+    usersData.push({ correo: 'roberto@admin.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.ADMIN, personaId: 24, verificado: true });
+    usersData.push({ correo: 'elena@doc.com', password: '$2a$12$LDfJlhtdfM22Nj5FoqNmFuYyRBmJVsanmqlhsGklIG.vNs8sAlWhW', rol: Rol.DOCTOR, personaId: 25, verificado: true });
     
     await prisma.user.createMany({ data: usersData });
     console.log(`✅ ${usersData.length} Usuarios creados`);
 
+    // 🔴 NUEVO: Códigos de Verificación (para usuarios no verificados, IDs 4, 8, 12, 16, 20)
+    const unverifiedUserIds = [4, 8, 12, 16, 20];
+    const verificationCodes: Prisma.CodigoVerificacionCreateManyInput[] = [];
+
+    for (const userId of unverifiedUserIds) {
+        verificationCodes.push({
+            userId: userId,
+            codigo: generarNumero(6),
+            fechaExpiracion: addMinutes(BASE_DATE, 15), // Expira en 15 minutos
+            usado: false
+        });
+    }
+    await prisma.codigoVerificacion.createMany({ data: verificationCodes });
+    console.log(`✅ ${verificationCodes.length} Códigos de Verificación creados para usuarios no verificados.`);
 
     // 3️⃣ Empleados (5 registros)
     const empleadosCreados = await prisma.$transaction([
-        prisma.empleado.create({ data: { personaId: 21, puesto: Puesto.DOCTOR, salario: 25000 } }),
-        prisma.empleado.create({ data: { personaId: 22, puesto: Puesto.DOCTOR, salario: 27000 } }),
-        prisma.empleado.create({ data: { personaId: 23, puesto: Puesto.RECEPCIONISTA, salario: 18000 } }),
-        prisma.empleado.create({ data: { personaId: 24, puesto: Puesto.ADMIN, salario: 30000 } }),
-        prisma.empleado.create({ data: { personaId: 25, puesto: Puesto.DOCTOR, salario: 26000 } }),
+        prisma.empleado.create({ data: { personaId: 21, puesto: Puesto.DOCTOR, salario: 25000 } }), // Laura (1)
+        prisma.empleado.create({ data: { personaId: 22, puesto: Puesto.DOCTOR, salario: 27000 } }), // Miguel (2)
+        prisma.empleado.create({ data: { personaId: 23, puesto: Puesto.RECEPCIONISTA, salario: 18000 } }), // Claudia (3)
+        prisma.empleado.create({ data: { personaId: 24, puesto: Puesto.ADMIN, salario: 30000 } }), // Roberto (4)
+        prisma.empleado.create({ data: { personaId: 25, puesto: Puesto.DOCTOR, salario: 26000 } }), // Elena (5)
     ]);
     
-    // IDs primarios (reales) de la tabla Empleado: [1, 2, 3, 4, 5]
     const doctorIds = empleadosCreados.filter(e => e.puesto === Puesto.DOCTOR).map(e => e.id); 
     // doctorIds ahora es [1, 2, 5]
     
@@ -111,28 +133,66 @@ async function main() {
 
     // 4️⃣ Servicios clínicos (7 registros)
     const serviciosData = [
-        { nombre: 'Limpieza dental', descripcion: 'Limpieza profesional básica', precio: 500 },
-        { nombre: 'Extracción de muela', descripcion: 'Extracción dental simple', precio: 1200 },
-        { nombre: 'Blanqueamiento dental', descripcion: 'Tratamiento estético', precio: 2000 },
-        { nombre: 'Ortodoncia', descripcion: 'Colocación de brackets', precio: 5000 },
-        { nombre: 'Consulta general', descripcion: 'Revisión general dental', precio: 300 },
-        { nombre: 'Endodoncia', descripcion: 'Tratamiento de conducto', precio: 2500 },
-        { nombre: 'Implante dental', descripcion: 'Colocación de implante', precio: 8000 },
+        { nombre: 'Limpieza dental', descripcion: 'Limpieza profesional básica', precio: 500 }, // 1
+        { nombre: 'Extracción simple', descripcion: 'Extracción dental simple', precio: 1200 }, // 2
+        { nombre: 'Blanqueamiento', descripcion: 'Tratamiento estético', precio: 2000 }, // 3
+        { nombre: 'Ortodoncia - Revisión', descripcion: 'Control mensual de brackets', precio: 800 }, // 4
+        { nombre: 'Consulta general', descripcion: 'Revisión general dental', precio: 300 }, // 5
+        { nombre: 'Endodoncia', descripcion: 'Tratamiento de conducto', precio: 2500 }, // 6
+        { nombre: 'Implante dental', descripcion: 'Colocación de implante', precio: 8000 }, // 7
     ];
     await prisma.servicioClinico.createMany({ data: serviciosData });
     const serviciosCreados = await prisma.servicioClinico.findMany(); // Obtenemos IDs reales
     const numServicios = serviciosCreados.length;
     console.log(`✅ ${numServicios} Servicios clínicos creados`);
 
+    // 🔴 NUEVO: 5️⃣ Especialidades (4 registros)
+    const especialidadesCreadas = await prisma.$transaction([
+        prisma.especialidad.create({ data: { nombre: 'Odontología General', descripcion: 'Limpiezas, revisiones, empastes.' } }), // 1
+        prisma.especialidad.create({ data: { nombre: 'Cirugía Oral', descripcion: 'Extracciones, implantes.' } }), // 2
+        prisma.especialidad.create({ data: { nombre: 'Estética Dental', descripcion: 'Blanqueamiento y carillas.' } }), // 3
+        prisma.especialidad.create({ data: { nombre: 'Ortodoncia', descripcion: 'Alineación dental y brackets.' } }), // 4
+    ]);
+    const especialidadIds = especialidadesCreadas.map(e => e.id);
+    const [generalId, cirugiaId, esteticaId, ortodonciaId] = especialidadIds;
+    console.log(`✅ ${especialidadesCreadas.length} Especialidades creadas. IDs: ${especialidadIds.join(', ')}`);
 
-    // 5️⃣ Expedientes (20 registros, uno por cliente)
-    // El Expediente requiere la relación de la Persona (pacienteId) y el Empleado (doctorId).
+    // 🔴 NUEVO: 6️⃣ Asociación de Doctores y Servicios a Especialidades
+    // Doctores a Especialidad
+    await prisma.especialidadDoctor.createMany({ 
+        data: [
+            { doctorId: 1, especialidadId: generalId }, // Laura: General
+            { doctorId: 1, especialidadId: esteticaId }, // Laura: Estética
+
+            { doctorId: 2, especialidadId: generalId }, // Miguel: General
+            { doctorId: 2, especialidadId: ortodonciaId }, // Miguel: Ortodoncia
+
+            { doctorId: 5, especialidadId: cirugiaId }, // Elena: Cirugía Oral
+            { doctorId: 5, especialidadId: generalId }, // Elena: General
+        ]
+    });
+    console.log(`✅ 6 Asociaciones Doctor/Especialidad creadas.`);
+
+    // Servicios a Especialidad
+    await prisma.servicioEspecialidad.createMany({
+        data: [
+            { servicioId: 1, especialidadId: generalId }, // Limpieza -> General
+            { servicioId: 2, especialidadId: cirugiaId }, // Extracción -> Cirugía
+            { servicioId: 3, especialidadId: esteticaId }, // Blanqueamiento -> Estética
+            { servicioId: 4, especialidadId: ortodonciaId }, // Ortodoncia -> Ortodoncia
+            { servicioId: 5, especialidadId: generalId }, // Consulta G. -> General
+            { servicioId: 6, especialidadId: generalId }, // Endodoncia -> General (Simplificado)
+            { servicioId: 7, especialidadId: cirugiaId }, // Implante -> Cirugía
+        ]
+    });
+    console.log(`✅ 7 Asociaciones Servicio/Especialidad creadas.`);
+
+
+    // 7️⃣ Expedientes (20 registros, uno por cliente)
     for (let i = 1; i <= NUM_CLIENTES; i++) {
         const exp = await prisma.expediente.create({
             data: {
-                pacienteId: i, // ID de la Persona/Cliente
-                // La relación Empleado(Doctor) necesita un `ExpedienteDoctor` intermedio.
-                // Insertamos el expediente y luego la asociación en ExpedienteDoctor.
+                pacienteId: i, 
                 alergias: i % 5 === 0 ? 'Penicilina' : 'Ninguna',
                 enfermedades: i % 4 === 0 ? 'Diabetes Tipo 2' : 'Ninguna conocida',
                 medicamentos: i % 3 === 0 ? 'Ibuprofeno' : 'Ninguno',
@@ -152,7 +212,7 @@ async function main() {
     console.log(`✅ ${expedientesCreados.length} Expedientes y Asociaciones de Doctor creados`);
 
 
-    // 6️⃣ Detalles de Expediente (40 registros, 2 detalles por expediente)
+    // 8️⃣ Detalles de Expediente (40 registros, 2 detalles por expediente)
     for (let i = 0; i < expedientesCreados.length; i++) {
         const expedienteId = expedientesCreados[i].id;
         const doctor1 = getDoctorId(i);
@@ -162,7 +222,7 @@ async function main() {
         await prisma.expedienteDetalle.create({
             data: {
                 expedienteId: expedienteId,
-                fecha: addDays(BASE_DATE, -(50 + i)), // Fecha pasada
+                fecha: addDays(BASE_DATE, -(50 + i)), 
                 motivo: 'Control anual',
                 diagnostico: 'Dientes sanos, sarro leve',
                 tratamiento: 'Limpieza básica',
@@ -175,7 +235,7 @@ async function main() {
         await prisma.expedienteDetalle.create({
             data: {
                 expedienteId: expedienteId,
-                fecha: addDays(BASE_DATE, -(10 + i)), // Fecha reciente
+                fecha: addDays(BASE_DATE, -(10 + i)), 
                 motivo: (i % 3 === 0) ? 'Dolor agudo en muela' : 'Estético - Blanqueamiento',
                 diagnostico: (i % 3 === 0) ? 'Caries en molar' : 'Manchas por café',
                 tratamiento: (i % 3 === 0) ? 'Empaste + Endodoncia' : 'Blanqueamiento láser',
@@ -186,21 +246,19 @@ async function main() {
     }
     console.log(`✅ ${expedientesCreados.length * 2} Detalles de expediente creados`);
 
-   
+    
 
-    // 8️⃣ Citas (60 registros, variedad de estados y fechas)
+    // 9️⃣ Citas (60 registros, variedad de estados y fechas)
     for (let i = 1; i <= NUM_CLIENTES; i++) {
         const doctor = getDoctorId(i);
         const servicio = (i % numServicios) + 1;
         
-        // Generamos fechas basadas en la fecha base
-        const fechaCompletada = addDays(BASE_DATE, -(30 + i)); // Pasado (hace un mes)
-        const fechaCancelada = addDays(BASE_DATE, -(7 + i)); // Reciente (hace una semana)
-        const fechaPendiente = addDays(BASE_DATE, (10 + i)); // Futura (próximos días)
+        const fechaCompletada = addDays(BASE_DATE, -(30 + i)); 
+        const fechaCancelada = addDays(BASE_DATE, -(7 + i)); 
+        const fechaPendiente = addDays(BASE_DATE, (10 + i)); 
 
-        // Cita 1: COMPLETADA (Historial)
+        // Cita 1: COMPLETADA (Historial - Se facturará)
         citasData.push({
-            // CORREGIDO: Usamos formatDateString para obtener 'YYYY-MM-DD'
             fecha: formatDateString(fechaCompletada), 
             hora: randomHora(),
             estado: EstadoCita.COMPLETADA,
@@ -209,10 +267,9 @@ async function main() {
             servicioId: servicio,
         });
         
-        // Cita 2: CANCELADA (Prueba de filtros)
+        // Cita 2: CANCELADA 
         if (i % 3 === 0) {
             citasData.push({
-                // CORREGIDO: Usamos formatDateString para obtener 'YYYY-MM-DD'
                 fecha: formatDateString(fechaCancelada),
                 hora: randomHora(),
                 estado: EstadoCita.CANCELADA,
@@ -224,7 +281,6 @@ async function main() {
 
         // Cita 3: PENDIENTE (Futura - Agendamiento)
         citasData.push({
-            // CORREGIDO: Usamos formatDateString para obtener 'YYYY-MM-DD'
             fecha: formatDateString(fechaPendiente),
             hora: randomHora(),
             estado: EstadoCita.PENDIENTE,
@@ -234,16 +290,56 @@ async function main() {
         });
     }
     await prisma.cita.createMany({ data: citasData });
+    const citasCreadas = await prisma.cita.findMany({ where: { estado: EstadoCita.COMPLETADA }});
     console.log(`✅ ${citasData.length} Citas creadas`);
+
+
+    // 🔴 NUEVO: 🔟 Facturas y DetalleFactura (Una por cada cita completada)
+    const CAI_FIJO = generarNumero(15); 
+    let numeroFactura = 1;
+
+    for (const cita of citasCreadas) {
+        const servicio = serviciosCreados.find(s => s.id === cita.servicioId);
+        if (!servicio) continue;
+
+        const subtotal = servicio.precio;
+        const isv = servicio.precio * 0.15; // Asumimos ISV 15%
+        const totalPagar = subtotal + isv;
+
+        // 1. Crear Factura (Encabezado)
+        const factura = await prisma.factura.create({
+            data: {
+                numeroFactura: String(numeroFactura++).padStart(8, '0'),
+                cai: CAI_FIJO,
+                fechaEmision: addDays(new Date(cita.fecha), 1), // Factura emitida un día después de la cita
+                pacienteId: cita.pacienteId,
+                doctorId: cita.doctorId,
+                subtotal: subtotal,
+                isv15: isv,
+                totalPagar: totalPagar,
+                // Relación 1:1 con la cita
+                citaId: cita.id, 
+            }
+        });
+
+        // 2. Crear DetalleFactura (Línea de servicio)
+        await prisma.detalleFactura.create({
+            data: {
+                facturaId: factura.id,
+                servicioId: servicio.id,
+                descripcion: servicio.nombre,
+                cantidad: 1,
+                precioUnitario: servicio.precio,
+                totalLinea: servicio.precio,
+                aplicaISV: true,
+            }
+        });
+    }
+    console.log(`✅ ${citasCreadas.length} Facturas y sus Detalles creados para las Citas COMPLETADAS.`);
+
 
     console.log('\n✨ Todos los datos de prueba han sido cargados con éxito.');
 }
-
-// Función auxiliar simple para generar números aleatorios
-function generarNumero(length: number): string {
-  return Array.from({ length }, () => Math.floor(Math.random() * 10)).join('');
-}
-
 
 main()
     .then(async () => {
@@ -254,4 +350,3 @@ main()
         await prisma.$disconnect();
         process.exit(1);
     });
-  
