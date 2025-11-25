@@ -17,6 +17,7 @@ import { ParseIntPipe } from '@nestjs/common/pipes/parse-int.pipe';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
+import { Public } from 'src/auth/public.decorator';
 
 @ApiTags('servicios')
 @Controller('servicios')
@@ -26,7 +27,7 @@ export class ServiciosController {
 
   @Get()
   
-  @Roles('ADMIN',"CLIENTE","RECEPCIONISTA")
+  @Public()
   @ApiOperation({ summary: 'Obtener todos los servicios.' })
   @ApiResponse({
     status: 200,

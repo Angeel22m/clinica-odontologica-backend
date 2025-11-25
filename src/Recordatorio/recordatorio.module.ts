@@ -19,7 +19,7 @@ import { ScheduleModule } from "@nestjs/schedule";
                 transport: Transport.RMQ,
                 options: {
                     // URL de tu servidor RabbitMQ
-                    urls: ['amqp://localhost:5672'], 
+                 urls: ['amqp://guest:guest@rabbitmq:5672'], 
                      
                     // Nombre de la cola (debe coincidir con el Consumidor)
                     queue: 'scheduler_jobs_queue', 
