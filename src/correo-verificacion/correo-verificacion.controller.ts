@@ -1,10 +1,9 @@
 // src/email-verification/email-verification.controller.ts
-import { Controller, Post, Body, Req, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, HttpCode, Param, ParseIntPipe } from '@nestjs/common';
 import { EmailVerificationService } from './correo-verificacion.service';
 import { IsNotEmpty, IsNumberString, Length } from 'class-validator';
+import { ApiParam } from '@nestjs/swagger';
 
-class JwtAuthGuard { canActivate() { return true; } } // Placeholder
-class RequestWithUser { user: { id: number }; } // Placeholder para el objeto Request
 
 // DTO para la validación del código
 class ValidateCodeDto {
@@ -22,12 +21,11 @@ export class EmailVerificationController {
    * Endpoint 1: Solicitar un nuevo código
    * (Requiere que el usuario esté autenticado para saber a quién enviar el código)
    */
-  @Post('request-code')
-  @UseGuards(JwtAuthGuard) // Asumimos que el usuario está autenticado
+  @Post('request-code/:id')
   @HttpCode(202) // Aceptado, el proceso se inició
-  async requestCode(@Req() req: RequestWithUser) {
-    const userId = req.user.id;
-    await this.verificationService.generateAndStoreCode(userId);
+  async requestCode(@Param('id', ParseIntPipe) id: number) {
+    
+    await this.verificationService.generateAndStoreCode(id);
     
     return { 
       message: 'Se ha enviado un nuevo código de verificación a tu correo electrónico.',
@@ -38,12 +36,11 @@ export class EmailVerificationController {
   /**
    * Endpoint 2: Validar el código introducido por el usuario
    */
-  @Post('validate')
-  @UseGuards(JwtAuthGuard) // Asumimos que el usuario está autenticado
-  async validateCode(@Req() req: RequestWithUser, @Body() body: ValidateCodeDto) {
-    const userId = req.user.id;
+  @Post('validate/:id')
+  @ApiParam({ name: 'id', description: 'ID del user a verificar', example: 1 })
+  async validateCode(@Param('id',ParseIntPipe) id:number,@Body() body: ValidateCodeDto) {
+
     const { code } = body;
-    
-    return this.verificationService.validateCodeAndVerifyUser(userId, code);
+    return this.verificationService.validateCodeAndVerifyUser(id, code);
   }
 }

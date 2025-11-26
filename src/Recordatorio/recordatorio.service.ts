@@ -44,7 +44,7 @@ export class RecordatorioService {
       const horasReal = Math.floor(horas)
     
 
-      if (horasReal <= 48 && horasReal >= 47) {
+      if (horasReal <= 48) {
         
         console.log(`-> Delegando cita ${cita.id} a RabbitMQ.`);
         
