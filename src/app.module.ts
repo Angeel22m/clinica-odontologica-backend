@@ -11,6 +11,7 @@ import { NotificationModule } from './notificaciones/notificaciones.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecordatorioModule } from './Recordatorio/recordatorio.module';
 import { LogsModule } from './logs/logs.module';
+import { CrearFacturaModule } from './CrearFactura/crearFactura.module';
 
 
 @Module({
@@ -26,6 +27,7 @@ import { LogsModule } from './logs/logs.module';
     PrismaModule,
     RecordatorioModule,
     LogsModule,
+    CrearFacturaModule
     
   ],
 })

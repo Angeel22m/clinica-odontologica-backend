@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsInt, IsEnum, IsString } from 'class-validator';
+import { IsDateString, IsInt, IsEnum, IsString, IsOptional } from 'class-validator';
 import { HorarioLaboral } from '../../enums/enums';
 import { EstadoCita } from '../../enums/enums';
+
 
 export class CreateCitaDto {
   @IsString(
@@ -36,4 +37,5 @@ export class CreateCitaDto {
   })
   @IsInt({ message: 'El ID del servicio debe ser un número entero' })
   servicioId: number;
+
 }
