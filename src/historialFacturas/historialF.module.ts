@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "src/prisma/prisma.module";
-import {  HistorialFacturaService } from "./historialF.service";
-import { HistorialFacturaController } from "./historialF.controller";
+import { FacturasService } from "./historialF.service";
+import { FacturaController } from "./historialF.controller";
 
 
 @Module({
-    controllers:[HistorialFacturaController],
-    providers:[HistorialFacturaService],
+    controllers:[FacturaController],
+    providers:[FacturasService],
     imports:[PrismaModule]
 
 })

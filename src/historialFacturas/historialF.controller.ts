@@ -1,15 +1,12 @@
-import { Controller } from "@nestjs/common";
-import { ApiResponse, ApiTags } from "@nestjs/swagger";
-import { HistorialFacturaService } from "./historialF.service";
+import { Controller, Get } from '@nestjs/common';
+import { FacturasService } from './historialF.service';
 
+@Controller('facturas')
+export class FacturaController {
+  constructor(private readonly facturaService: FacturasService) {}
 
-
-@ApiTags("Historial")
-@Controller("Historial")
-
-export class HistorialFacturaController{
- //   constructor (private readonly historialFacturaService: HistorialFacturaService)
-
-
-
+  @Get('historial')
+  async getHistorialFacturas() {
+    return await this.facturaService.historialFactura();
+  }
 }
