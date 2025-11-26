@@ -98,7 +98,7 @@ export class ModificadorInfoController {
   }
 
   @Patch('actualizar/:correo')
-  @Roles('CLIENTE', 'RECEPCIONISTA', 'ADMIN')
+  @Roles('CLIENTE', 'RECEPCIONISTA', 'ADMIN', 'DOCTOR')
   async updateInfo(
     @Param('correo') correo: string,
     @Body() data: UpdateModificarInfoDto,
