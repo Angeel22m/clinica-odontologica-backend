@@ -66,9 +66,12 @@ export class CitasController {
 
   
   @Get('doctores-disponibles')
-  @Roles('CLIENTE',"RECEPCIONISTA")
-  async getDoctoresDisponibles(@Query('fecha') fecha: string) {
-    return this.citasService.getDoctoresDisponibles(fecha);
+  @Roles('CLIENTE', 'RECEPCIONISTA')
+  async getDoctoresDisponibles(  
+    @Query('fecha') fecha: string,     
+    @Query('servicioId', ParseIntPipe) servicioId: number,
+  ) {    
+    return this.citasService.getDoctoresDisponibles(fecha, servicioId);
   }
 
   @Get('horas-disponibles')

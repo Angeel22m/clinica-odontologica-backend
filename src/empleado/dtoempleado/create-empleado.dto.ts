@@ -1,6 +1,6 @@
 // src/empleado/dtoempleado/create-empleado-usuario.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDate, IsEmail, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsDate, IsEmail, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Puesto } from '@prisma/client'; // o de tu enum local
 import { Rol } from '@prisma/client';    // o de tu enum local
@@ -63,6 +63,16 @@ export class CreateEmpleadoDto {
   @Type(() => Date)
   @IsNotEmpty()
   fechaIngreso: Date;
+
+  @ApiPropertyOptional({ 
+        description: 'Lista de IDs de especialidades (solo requerido si el puesto es DOCTOR)',
+        type: [Number], // Para Swagger
+    })
+    @IsOptional()
+    @IsArray()
+    @IsInt({ each: true }) // Valida que cada elemento del array es un entero
+    @Type(() => Number) // Transforma los elementos del array a números si vienen como strings
+    especialidadIds?: number[];
 
 
   // Datos del Usuario

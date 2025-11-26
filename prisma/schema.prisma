@@ -21,6 +21,7 @@ model Persona {
   empleado    Empleado?
   expedientes Expediente?
   user        User?
+  facturasEmitidas Factura[]
 }
 
 model User {
@@ -29,10 +30,25 @@ model User {
   password  String?
   rol       Rol      @default(CLIENTE)
   activo    Boolean  @default(true)
+  verificado  Boolean @default(false) // NUEVO CAMPO
   personaId Int      @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   persona   Persona  @relation(fields: [personaId], references: [id])
+  codigos   CodigoVerificacion?
+
+
+}
+
+model CodigoVerificacion {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique // Relación 1:1 con el usuario (solo puede haber un código activo por usuario)
+  codigo           String   // El código de 6 dígitos o alfanumérico generado
+  fechaCreacion    DateTime @default(now())
+  fechaExpiracion  DateTime // El momento en que el código deja de ser válido (Ej: 15 minutos después de la creación)
+  usado            Boolean  @default(false) // Indica si el código ya fue consumido
+  
+  user             User     @relation(fields: [userId], references: [id])
 }
 
 model Empleado {
@@ -48,6 +64,41 @@ model Empleado {
   detalles             ExpedienteDetalle[]
   expedientesAsociados ExpedienteDoctor[]
   logs                 Logs[]
+  facturasAsociadas Factura[]
+  especialidades   EspecialidadDoctor[]
+}
+
+model Especialidad {
+  id               Int                      @id @default(autoincrement())
+  nombre           String                   @unique
+  descripcion      String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  
+  // Relaciones de unión
+  doctores         EspecialidadDoctor[]
+  servicios        ServicioEspecialidad[]
+}
+
+model EspecialidadDoctor {
+  doctorId         Int
+  especialidadId   Int
+  fechaAsociacion  DateTime                 @default(now())
+
+  doctor           Empleado                 @relation(fields: [doctorId], references: [id])
+  especialidad     Especialidad             @relation(fields: [especialidadId], references: [id])
+
+  @@id([doctorId, especialidadId]) // Clave compuesta para asegurar unicidad
+}
+
+model ServicioEspecialidad {
+  servicioId       Int
+  especialidadId   Int
+  
+  servicio         ServicioClinico          @relation(fields: [servicioId], references: [id])
+  especialidad     Especialidad             @relation(fields: [especialidadId], references: [id])
+
+  @@id([servicioId, especialidadId]) // Clave compuesta
 }
 
 model ServicioClinico {
@@ -59,6 +110,9 @@ model ServicioClinico {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   citas       Cita[]
+  detallesFactura DetalleFactura[]
+  especialidades   ServicioEspecialidad[]
+  
 }
 
 model Expediente {
@@ -132,6 +186,7 @@ model Cita {
   paciente                 Persona                   @relation(fields: [pacienteId], references: [id])
   servicio                 ServicioClinico           @relation(fields: [servicioId], references: [id])
   HistorialCancelacionCita HistorialCancelacionCita?
+  factura          Factura?          
 }
 
 model HistorialCancelacionCita {
@@ -151,6 +206,49 @@ model Logs {
   login          DateTime  @default(now())
   logout         DateTime?  @default(now())
 }
+
+model Factura {
+  id               Int                @id @default(autoincrement())
+  numeroFactura    String             @unique // OBLIGATORIO: Número correlativo del documento fiscal.
+  cai              String // OBLIGATORIO: Clave de Autorización (CAI).
+  fechaEmision     DateTime           @default(now())
+  pacienteId       Int
+  doctorId         Int?               // El doctor que prestó el servicio
+  subtotal         Float
+  descuentos       Float              @default(0)
+  importeExonerado Float              @default(0)
+  importeExento    Float              @default(0)
+  isv15            Float              @default(0)
+  isv18            Float              @default(0)
+  totalPagar       Float
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  paciente         Persona            @relation(fields: [pacienteId], references: [id])
+  doctor           Empleado?          @relation(fields: [doctorId], references: [id])
+  detalles         DetalleFactura[]
+
+  citaId           Int?               @unique
+  cita             Cita?              @relation(fields: [citaId], references: [id])
+}
+
+model DetalleFactura {
+  id                Int             @id @default(autoincrement())
+  facturaId         Int
+  servicioId        Int?           
+  descripcion       String         
+  cantidad          Int
+  precioUnitario    Float
+  totalLinea        Float
+  aplicaISV         Boolean         @default(true) // Indica si esta línea está gravada
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  factura           Factura         @relation(fields: [facturaId], references: [id])
+  servicioClinico   ServicioClinico? @relation(fields: [servicioId], references: [id])
+
+}
+
 
 enum Rol {
   ADMIN
@@ -173,21 +271,3 @@ enum EstadoCita {
   CONFIRMADA
 }
 
-enum HorarioLaboral {
-  H08_00
-  H08_30
-  H09_00
-  H09_30
-  H10_00
-  H10_30
-  H11_00
-  H11_30
-  H13_00
-  H13_30
-  H14_00
-  H14_30
-  H15_00
-  H15_30
-  H16_00
-  H16_30
-}
