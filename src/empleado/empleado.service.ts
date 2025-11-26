@@ -2,7 +2,10 @@ import { Injectable,NotFoundException,BadRequestException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmpleadoDto } from './dtoempleado/create-empleado.dto';
 import { UpdateEmpleadoDto } from './dtoempleado/update-empleado.dto';
+import { Puesto } from '@prisma/client';
+
 import * as bcrypt from 'bcrypt';
+
 
 
 
@@ -54,6 +57,21 @@ async createEmpleado(dto: CreateEmpleadoDto) {
       },
     });
 
+    if (dto.puesto === 'DOCTOR' && dto.especialidadIds && dto.especialidadIds.length > 0) {
+        
+        // Mapear los IDs de especialidades a objetos de creación
+        const especialidadRelations = dto.especialidadIds.map((especialidadId) => ({
+          doctorId: empleado.id,
+          especialidadId: especialidadId,
+          fechaAsociacion: new Date().toISOString(), // O la fecha actual
+        }));
+
+        // Insertar todas las relaciones en la tabla de unión (EspecialidadDoctor)
+        await tx.especialidadDoctor.createMany({
+            data: especialidadRelations,
+        });
+      }
+
     // 3 Crear el usuario vinculado
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -80,7 +98,8 @@ async createEmpleado(dto: CreateEmpleadoDto) {
 async findAllCompleto() {
   return this.prisma.empleado.findMany({
     include: {
-      persona: true,
+      persona:{include:{user:true}},    
+      especialidades:{include:{especialidad:true}}
     },
   });
 }
@@ -130,6 +149,41 @@ async UpdateEmpleado(id: number, dto: Partial<UpdateEmpleadoDto>) {
         activo: dto.activo,
       },
     });
+
+    const puestoActual = dto.puesto || empleadoExistente?.puesto; // Usar el puesto nuevo o el existente
+    const doctorId = empleadoActualizado.id;
+
+    
+    if (puestoActual === Puesto.DOCTOR && dto.especialidadIds && dto.especialidadIds.length === 0) {
+        throw new BadRequestException('Un doctor debe tener al menos una especialidad.');
+    }
+
+    // 2. PROCESAR CAMBIOS DE ESPECIALIDAD (Si es DOCTOR y hay IDs)
+    if (puestoActual === Puesto.DOCTOR && dto.especialidadIds && dto.especialidadIds.length > 0) {
+        
+        // 2.1 ELIMINAR especialidades existentes
+        await tx.especialidadDoctor.deleteMany({
+            where: { doctorId: doctorId },
+        });
+
+        // 2.2 CREAR nuevas especialidades
+        const especialidadRelations = dto.especialidadIds.map((especialidadId) => ({
+            doctorId: doctorId,
+            especialidadId: especialidadId,
+            fechaAsociacion: new Date().toISOString(),
+        }));
+
+        await tx.especialidadDoctor.createMany({
+            data: especialidadRelations,
+        });
+
+    } else if (puestoActual !== Puesto.DOCTOR) {
+        // 3. LIMPIEZA: Si el puesto NO es DOCTOR (Recep. o Admin), eliminamos las especialidades.
+        await tx.especialidadDoctor.deleteMany({
+            where: { doctorId: doctorId },
+        });
+    }
+     
 
     // 4️ Actualizar Usuario (si existe)
     const usuarioExistente = await tx.user.findFirst({

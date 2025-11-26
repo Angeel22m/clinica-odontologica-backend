@@ -158,70 +158,96 @@ export class CitasService {
     });
   }
 
-  async getDoctoresDisponibles(fecha: string) {
-    const fechaInicio = `${fecha}T00:00:00.000Z`;
-    //fechaInicio.setHours(0, 0, 0, 0);
+  // Asumiendo que esta es la firma del método:
+async getDoctoresDisponibles(fecha: string, servicioId: number) {
+  const fechaInicio = `${fecha}T00:00:00.000Z`;
+  const fechaFin = `${fecha}T23:59:59.999Z`;
 
-    const fechaFin = `${fecha}T23:59:59.999Z`;
-    //fechaFin.setHours(23, 59, 59, 999);
+  const horariosLaborales = Object.values(HorarioLaboral) as string[];
 
-    const horariosLaborales = Object.values(HorarioLaboral) as string[];
+  // Obtener las IDs de especialidad necesarias para el Servicio
+  const servicioEspecialidades = await this.prisma.servicioEspecialidad.findMany({
+    where: { servicioId: servicioId },
+    select: { especialidadId: true },
+  });
 
-    // 1. Obtener doctores
-    const doctores = await this.prisma.empleado.findMany({
-      where: {
-        puesto: 'DOCTOR',
-        activo: true,
-      },
-      include: {
-        persona: true,
-      },
-    });
+  if (servicioEspecialidades.length === 0) {
+    // Si el servicio no requiere especialidades, devolvemos un array vacío o todos los doctores.
+    // Aquí asumimos que debe haber al menos una especialidad relevante.
+    return []; 
+  }
+  
+  const especialidadIdsRequeridas = servicioEspecialidades.map(se => se.especialidadId);
 
-    const citasDelDia = await this.prisma.cita.findMany({
-      where: {
-        fecha: {
-          gte: fechaInicio,
-          lte: fechaFin,
+  // Obtener Doctores DISPONIBLES EN FECHA Y FILTRADOS POR ESPECIALIDAD
+  const doctoresAptos = await this.prisma.empleado.findMany({
+    where: {
+      puesto: 'DOCTOR',
+      activo: true,
+   
+      especialidades: {
+        some: {
+          especialidadId: {
+            in: especialidadIdsRequeridas,
+          },
         },
       },
-      select: {
-        doctorId: true,
-        hora: true,
+    },
+    include: {
+      persona: true,
+    },
+  });
+
+  // 3. Obtener Citas del día para todos los doctores APTOS
+  const doctorIdsAptos = doctoresAptos.map(d => d.id);
+  
+  const citasDelDia = await this.prisma.cita.findMany({
+    where: {
+      doctorId: {
+        in: doctorIdsAptos, // Solo buscamos citas para los doctores aptos
       },
-    });
+      fecha: {
+        gte: fechaInicio,
+        lte: fechaFin,
+      },
+    },
+    select: {
+      doctorId: true,
+      hora: true,
+    },
+  });
 
-    const citasPorDoctor = new Map<number, string[]>();
-    for (const c of citasDelDia) {
-      const arr = citasPorDoctor.get(c.doctorId) ?? [];
-      arr.push(c.hora);
-      citasPorDoctor.set(c.doctorId, arr);
-    }
-
-    const disponibles: { id: number; nombre: string }[] = [];
-
-    for (const doctor of doctores) {
-      //const citasDelDoctor = citas.filter(c => c.doctorId === doctor.id);
-      const horasOcupadas = citasPorDoctor.get(doctor.id) ?? [];
-
-      const horasLibres = horariosLaborales.filter(
-        (hora) => !horasOcupadas.includes(hora),
-      );
-
-      if (horasLibres.length > 0) {
-        const nombreCompleto = doctor.persona
-          ? `${doctor.persona.nombre} ${doctor.persona.apellido ?? ''}`.trim()
-          : `Doctor ${doctor.id}`;
-
-        disponibles.push({
-          id: doctor.id,
-          nombre: nombreCompleto,
-        });
-      }
-    }
-
-    return disponibles;
+  // Procesamiento de disponibilidad (Miscelánea y Lógica horaria)
+  const citasPorDoctor = new Map<number, string[]>();
+  for (const c of citasDelDia) {
+    const arr = citasPorDoctor.get(c.doctorId) ?? [];
+    arr.push(c.hora);
+    citasPorDoctor.set(c.doctorId, arr);
   }
+
+  const disponibles: { id: number; nombre: string }[] = [];
+
+  for (const doctor of doctoresAptos) {
+    const horasOcupadas = citasPorDoctor.get(doctor.id) ?? [];
+
+    const horasLibres = horariosLaborales.filter(
+      (hora) => !horasOcupadas.includes(hora),
+    );
+
+    if (horasLibres.length > 0) {
+      const nombreCompleto = doctor.persona
+        ? `${doctor.persona.nombre} ${doctor.persona.apellido ?? ''}`.trim()
+        : `Doctor ${doctor.id}`;
+
+      disponibles.push({
+        id: doctor.id,
+        nombre: nombreCompleto,
+      });
+    }
+  }
+
+  return disponibles;
+}
 
   async getHorasDisponibles(doctorId: number, fecha: string) {
     const fechaInicio = fecha;
