@@ -110,7 +110,7 @@ export class ModificadorInfoController {
       return await this.modificadorInfoService.updateUserInfo(
         correo,
         data,
-        req.user,
+        //req.user,
       );
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -152,4 +152,26 @@ export class ModificadorInfoController {
       throw new BadRequestException(error.message);
     }
   }
+
+  
+  @Get('me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiResponse({ status: 200, description: 'Datos del usuario autenticado obtenidos correctamente' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  async getUserProfile(@Req() req) {
+  
+    const correo = req.user.correo;
+    
+    if (!correo) {
+      throw new BadRequestException('El token no contiene un correo válido')
+    }
+    
+    const usuario = await this.modificadorInfoService.findUserForUpdate(correo);
+    
+    return {
+      message: 'Datos del usuario autenticado obtenidos correctamente',
+      data: usuario,
+    }
+    }
+  
 }
