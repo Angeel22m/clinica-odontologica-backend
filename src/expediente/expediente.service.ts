@@ -336,6 +336,7 @@ export class ExpedienteService {
     */
 
   async crearExpedienteDetalle(data: CreateExpedienteDetalleDto) {
+
     // Verificar la existencia del Expediente (usando expedienteId)
     const existeExpediente = await this.prisma.expediente.findUnique({
       where: {
@@ -358,6 +359,34 @@ export class ExpedienteService {
       throw new NotFoundException(
         `El Doctor/Empleado con ID ${data.doctorId} no existe.`,
       );
+    }
+    // --- 2. Validación Condicional de la Cita y Actualización (CLAVE) ---
+    if (data.citaId) {
+        // Buscar la cita
+        const cita = await this.prisma.cita.findUnique({
+            where: { id: data.citaId },
+        });
+
+        if (!cita) {
+            throw new NotFoundException(`La Cita con ID ${data.citaId} no existe.`);
+        }
+        
+        // 2a. VALIDACIÓN: Evitar crear detalles si la cita ya está marcada como Completada/Cancelada
+        if (cita.estado === 'COMPLETADA' || cita.estado === 'CANCELADA') {
+             throw new BadRequestException(
+                 `No se puede crear un detalle de expediente a partir de una cita que ya está en estado "${cita.estado}".`
+             );
+        }
+
+        // 2b. ACTUALIZACIÓN: Cambiar el estado de la cita a COMPLETADA
+        await this.prisma.cita.update({
+            where: { id: data.citaId },
+            data: { 
+                estado: 'COMPLETADA' // <-- Usar el valor del ENUM de Prisma (EstadoCita)
+            },
+        });
+        
+        console.log(`Cita ${data.citaId} actualizada a estado: COMPLETADA`);
     }
 
     try {

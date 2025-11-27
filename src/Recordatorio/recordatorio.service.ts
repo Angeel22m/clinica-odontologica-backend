@@ -30,9 +30,9 @@ export class RecordatorioService {
     console.log(`--- DB: Encontradas ${citas.length} citas para procesar.`);
 
     for (const cita of citas) {
-     
+
       const ahora = new Date();
-      const fechaCompleta = new Date(`${cita.fecha}T${cita.hora}`);
+      const fechaCompleta = new Date(`${cita.fecha} ${cita.hora}`);
       const partes = cita.hora.split(":")
   
       const Hora = parseInt(partes[0],10)
@@ -43,8 +43,8 @@ export class RecordatorioService {
       const horas = diferenciaSeg / 3600;
       const horasReal = Math.floor(horas)
     
-
-      if (horasReal <= 48) {
+      console.log(horasReal)
+      if (horasReal <= 48 && horasReal >= 25) {
         
         console.log(`-> Delegando cita ${cita.id} a RabbitMQ.`);
         

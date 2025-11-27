@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { HorarioLaboral } from '../enums/enums';
 import { Prisma } from '@prisma/client';
 import { NotificationService } from '../notificaciones/notificaciones.service';
+import { HistorialCancelaDto } from './dto/historial-cancelacion.dto';
 
 function normalizarHora(hora: string): string {
   if (!hora) return '';
@@ -20,10 +21,18 @@ export class CitasService {
     private prisma: PrismaService,
     private notificationService: NotificationService,
   ) {}
+
+ private getFechaActualFormateada(): string {
+    const ahora = new Date();
+    const fechaLocal = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const fechaFormateada = fechaLocal.toISOString().slice(0, 10);
+    
+    return fechaFormateada;
+}
  
   async create(createCitaDto: CreateCitaDto) {
     const { fecha, hora, pacienteId, doctorId, servicioId } = createCitaDto;
-
+   
     const horaNormalizada = normalizarHora(hora);
 
     const doctorExists = await this.prisma.empleado.findUnique({
@@ -283,20 +292,25 @@ async getDoctoresDisponibles(fecha: string, servicioId: number) {
     }
 
     const citas = await this.prisma.cita.findMany({
-      where: {
-        pacienteId,
-         estado: { not: 'CANCELADA' },
-      },
-      include: {
-        doctor: {
-          include: {
-            persona: true,
+  where: {
+    pacienteId,
+    // La clave es usar 'not' con 'in' para múltiples valores
+    estado: { 
+      not: {
+        in: ['CANCELADA', 'COMPLETADA'],
+            },
           },
         },
-        servicio: true,
-      },
-      orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
-    });
+        include: {
+          doctor: {
+            include: {
+              persona: true,
+            },
+          },
+          servicio: true,
+        },
+        orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
+      });
 
     return citas;
   }
@@ -510,21 +524,58 @@ async getDoctoresDisponibles(fecha: string, servicioId: number) {
     return { message: citaActualizada, code: 0 };
   }
 
-  async cancelar(id: number) {
-    try {
-      const cita = await this.prisma.cita.update({
-        where: { id },
-        data: { estado: 'CANCELADA' },
-        select:{doctor:{include:{persona:{select:{id:true}}}},doctorId:true}
-      });
-      // notificar al doctor sobre actualización
-      this.notificationService.notifyDoctor(cita.doctor.persona.id, "updateCitasDoctor",cita.doctorId)
+ async cancelar(id: number, data: HistorialCancelaDto) {
+   
+    const { motivoCancelacion, usuarioCancelaId, rolCancela } = data;
 
-      return { code: 0, message: 'Cita cancelada exitosamente' };
+    try {
+     
+        const [citaActualizada, historialCreado] = await this.prisma.$transaction(async (tx) => {
+            
+            
+            const updatedCita = await tx.cita.update({
+                where: { id },
+                data: { estado: 'CANCELADA' },
+           
+                select: { 
+                    doctor: { include: { persona: { select: { id: true } } } }, 
+                    doctorId: true 
+                }
+            });
+
+
+            const historial = await tx.historialCancelacionCita.create({
+                data: {
+                    citaId: id,
+                    motivoCancelacion: motivoCancelacion,
+                    usuarioCancelaId: usuarioCancelaId,
+                    rolCancela: rolCancela,
+                   
+                },
+            });
+
+            // Retornar ambos resultados de la transacción
+            return [updatedCita, historial];
+        });
+      
+        this.notificationService.notifyDoctor(
+            citaActualizada.doctor.persona.id, 
+            "updateCitasDoctor", 
+            citaActualizada.doctorId
+        );
+
+        return { code: 0, message: 'Cita cancelada y registrada exitosamente' };
+        
     } catch (error) {
-      return { code: 500, message: 'No se pudo cancelar la cita' };
+        
+        console.error("Error al cancelar la cita con historial:", error);
+        
+        return { 
+            code: 500, 
+            message: 'No se pudo cancelar la cita ni registrar el historial. Verifique que la cita exista y no haya sido cancelada previamente.' 
+        };
     }
-  }
+}
 
   async confirmar(id: number) {
     try {
@@ -541,4 +592,34 @@ async getDoctoresDisponibles(fecha: string, servicioId: number) {
       return { code: 500, message: 'No se pudo confirmar la cita' };
     }
 }
+
+async citasConfirmadas(pacienteId : number, doctorId:number){
+
+const fechaActual = this.getFechaActualFormateada();
+
+  const citas = await this.prisma.cita.findMany({
+    where:{pacienteId:pacienteId,
+      doctorId:doctorId,
+      estado:'CONFIRMADA',
+      fecha:fechaActual
+    },
+    include:{servicio:true}
+
+
+  }) 
+  if(citas.length > 0){
+ return {
+            mensaje: 'Citas confirmadas encontradas para la fecha actual.',
+         
+            data: citas
+        };
+  }else
+  {
+    return {message:'no hay citas para completar'
+      
+    }
+  }
+
+}
+
 }

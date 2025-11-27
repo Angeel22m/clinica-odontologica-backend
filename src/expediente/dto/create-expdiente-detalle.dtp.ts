@@ -1,5 +1,6 @@
-import { IsInt, IsOptional, IsString, IsDateString, isString } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 
 export class CreateExpedienteDetalleDto {
   @ApiProperty({ description: 'ID del expediente al que pertenece este detalle.' })
@@ -49,5 +50,10 @@ export class CreateExpedienteDetalleDto {
   @IsOptional()
   @IsInt()
   doctorId: number;
+
+  // Parámetro Opcional (citaId)
+  @IsOptional()
+  @IsInt()
+  citaId?: number;
  
 }

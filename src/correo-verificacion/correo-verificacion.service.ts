@@ -133,6 +133,6 @@ export class EmailVerificationService {
       }),
     ]);
 
-    return { message: '¡Correo electrónico verificado con éxito!' };
+    return { success: true, message: '¡Correo electrónico verificado con éxito!' };
   }
 }

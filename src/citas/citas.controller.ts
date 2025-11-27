@@ -12,7 +12,7 @@ import {
 import { CitasService } from './citas.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { CreateServiciosDto } from 'src/servicios/dto/create_servicios.dto';
 import { identity } from 'rxjs';
 import { HorarioLaboral } from '../enums/enums';
@@ -21,10 +21,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard d
 import { RolesGuard } from '../auth/roles.guard';         // Necesitas tu guard de roles
 import { Roles } from '../auth/roles.decorator';
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
- 
+ import { CitasConfirmadasDto } from './dto/citas-confirmadas.dto';
+import { dot } from 'node:test/reporters';
+import { HistorialCancelaDto } from './dto/historial-cancelacion.dto';
 
 @Controller('citas')
-@UseGuards(JwtAuthGuard, RolesGuard)
+//@UseGuards(JwtAuthGuard, RolesGuard)
 export class CitasController {
   constructor(private readonly citasService: CitasService
     
@@ -134,10 +136,11 @@ export class CitasController {
   @Roles('CLIENTE',"RECEPCIONISTA")
   async cancelarCita(
     @Param('id') id: number,
+    @Body() dto:HistorialCancelaDto
   ) {
     // 1. Ejecutar la cancelación y esperar el objeto Cita
     // La Cita devuelta contiene 'id' y 'doctorId'.
-    const citaCancelada = await this.citasService.cancelar(id);
+    const citaCancelada = await this.citasService.cancelar(id,dto);
     
    
     // 3. Devolver el resultado de la operación HTTP
@@ -156,5 +159,25 @@ async confirmarCita(
 ) {
   return this.citasService.confirmar(id);
 }
+
+
+  @ApiOperation({ summary: 'Ver las citas para generar un detalle en expediente' })
+    // Documentar cada Path Parameter individualmente
+    @ApiParam({ name: 'pacienteId', type: Number, description: 'ID del paciente.' })
+    @ApiParam({ name: 'doctorId', type: Number, description: 'ID del doctor.' })
+    @ApiResponse({ status: 200, description: 'Lista de citas confirmadas.' })
+    
+    // 1. Define la ruta con los parámetros de la URL
+    @Get('confirmadas/:pacienteId/:doctorId')
+    // 2. Usar el decorador @Param sin un nombre de clave, asignado al DTO
+    async citasConfirmadas(
+        @Param() params: CitasConfirmadasDto,
+    ) {
+      return  await this.citasService.citasConfirmadas(
+            params.pacienteId, 
+            params.doctorId
+        );
+        
+    }
 
 }
