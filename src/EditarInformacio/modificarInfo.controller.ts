@@ -11,13 +11,14 @@ import {
 import { ModificarInfoService } from './modificarInfo.service';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UpdateModificarInfoDto } from './dtoModificar/update.modificarInfo';
+import { CambiarPasswordDto } from './dtoModificar/cambiarPassword.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard de autenticación
 import { RolesGuard } from '../auth/roles.guard'; // Necesitas tu guard de roles
 import { Roles } from '../auth/roles.decorator';
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 
-@ApiTags('modificar')
-@Controller('modificar')
+@ApiTags('Modificar')
+@Controller('Modificar')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ModificadorInfoController {
@@ -109,6 +110,24 @@ export class ModificadorInfoController {
         correo,
         data,
         req.user,
+      );
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Patch('cambiar-password/:correo')
+  @Roles('CLIENTE', 'RECEPCIONISTA', 'DOCTOR', 'ADMIN') // O los roles que uses
+  async cambiarUserPassword(
+    @Param('correo') correo: string,
+    @Body() dto: CambiarPasswordDto,
+    @Req() req: any,
+  ) {
+    try {
+      return await this.modificadorInfoService.cambiarPassword(
+        correo,
+        dto,
+        req.user, // viene del JWT
       );
     } catch (error) {
       throw new BadRequestException(error.message);
