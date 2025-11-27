@@ -3,6 +3,13 @@ import { ModificarInfoService } from '../EditarInformacio/modificarInfo.service'
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 
+// 1. DEFINICIÓN DEL MOCK DE SERVICIO DE CORREO
+// Debe ser mockeado porque es una dependencia del constructor de ModificarInfoService
+const mailServiceMock = {
+    sendMail: jest.fn(),
+    // Añade aquí cualquier otro método que ModificarInfoService use del servicio de correo
+};
+
 describe('ModificarInfoService', () => {
   let service: ModificarInfoService;
   let prisma: PrismaService;
@@ -36,6 +43,8 @@ describe('ModificarInfoService', () => {
       providers: [
         ModificarInfoService,
         { provide: PrismaService, useValue: prismaMock },
+        // 🚨 ¡CORRECCIÓN CLAVE! Provee el mock para la dependencia faltante.
+        { provide: 'MAIL_SERVICE', useValue: mailServiceMock }, 
       ],
     }).compile();
 
@@ -45,9 +54,10 @@ describe('ModificarInfoService', () => {
     jest.clearAllMocks();
   });
 
-  // ----------------------------------------------------------------------
-  //                    TESTS -> findUserForUpdate()
-  // ----------------------------------------------------------------------
+// --- El resto del archivo permanece igual ---
+// ----------------------------------------------------------------------
+//                    TESTS -> findUserForUpdate()
+// ----------------------------------------------------------------------
   describe('findUserForUpdate', () => {
     it('Debe retornar el usuario si existe', async () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
@@ -70,9 +80,9 @@ describe('ModificarInfoService', () => {
     });
   });
 
-  // ----------------------------------------------------------------------
-  //                    TESTS -> updateUserInfo()
-  // ----------------------------------------------------------------------
+// ----------------------------------------------------------------------
+//                    TESTS -> updateUserInfo()
+// ----------------------------------------------------------------------
   describe('updateUserInfo', () => {
     beforeEach(() => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);

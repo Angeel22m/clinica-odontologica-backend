@@ -184,7 +184,7 @@ export class ServiciosService {
 
       return { message: updated, code: 0 };
     } catch (error) {
-      console.error('Error al actualizar el servicio:', error);
+
       return { message: 'Error interno del servidor', code: 500 };
     }
   }

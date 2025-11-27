@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FacturasService } from 'src/historialFacturas/historialF.service';
+import { FacturasService } from '../historialFacturas/historialF.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 
@@ -7,7 +7,6 @@ describe('FacturasService', () => {
   let service: FacturasService;
   let prisma: PrismaService;
 
-  // Mock del PrismaService
   const mockPrismaService = {
     factura: {
       findMany: jest.fn(),
@@ -30,7 +29,7 @@ describe('FacturasService', () => {
   });
 
   // ------------------------------------------------------
-  // ✔ Caso 1: Devuelve correctamente el historial
+  // Caso 1: Devuelve correctamente el historial
   // ------------------------------------------------------
   it('debería retornar el historial de facturas', async () => {
     const mockFacturas = [
@@ -49,7 +48,7 @@ describe('FacturasService', () => {
   });
 
   // ------------------------------------------------------
-  // ❗ Caso 2: Lanza NotFoundException si no hay facturas
+  // Caso 2: Lanza NotFoundException si no hay facturas
   // ------------------------------------------------------
   it('debería lanzar NotFoundException si no existen facturas', async () => {
     prisma.factura.findMany.mockResolvedValue([]);
@@ -58,7 +57,7 @@ describe('FacturasService', () => {
   });
 
   // ------------------------------------------------------
-  // ❗ Caso 3: Manejo de error inesperado de Prisma
+  // Caso 3: Manejo de error inesperado de Prisma
   // ------------------------------------------------------
   it('debería lanzar error si prisma lanza una excepción', async () => {
     prisma.factura.findMany.mockRejectedValue(new Error('Prisma error'));
