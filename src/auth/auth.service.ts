@@ -98,17 +98,7 @@ export class AuthService {
             code: 25,
           };
         }
-
-        // Si aun es válida pero requiere cambio entonces se bloquea el login normal
-        return {
-          necesitaCambiarPassword: true,
-          message: 'Debe cambiar su contraseña temporal.',
-          user: { correo: findUser.correo },
-          code: 26,
-        };
       }
-
-      
 
       //verificar si es un empleado
       const empleado = await this.prisma.empleado.findFirst({
