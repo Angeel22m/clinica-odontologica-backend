@@ -7,11 +7,43 @@ export class FacturasService {
 
   async historialFactura() {
   try {
-    const facturas = await this.prisma.factura.findMany({
+   const facturas = await this.prisma.factura.findMany({
+  include: {
+    //  Detalles de cada factura
+    detalles: {
       include: {
-        detalles: true,
+        servicioClinico: {
+          select: {
+            nombre: true,  //  nombre del servicio
+          },
+        },
       },
-    });
+    },
+
+    //  Paciente
+    paciente: {
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        dni: true
+      },
+    },
+
+    //  Doctor (empleado → persona)
+    doctor: {
+      include: {
+        persona: {
+          select: {
+            nombre: true,
+            apellido: true,
+          },
+        },
+      },
+    },
+  },
+});
+
 
     //  Validar si no hay facturas
     if (!facturas || facturas.length === 0) {
