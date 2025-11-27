@@ -150,6 +150,7 @@ model ExpedienteArchivo {
   expediente    Expediente @relation(fields: [expedienteId], references: [id])
 }
 
+
 model ExpedienteDetalle {
   id              Int        @id @default(autoincrement())
   expedienteId    Int
