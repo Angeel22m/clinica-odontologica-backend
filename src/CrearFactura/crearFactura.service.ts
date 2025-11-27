@@ -130,73 +130,149 @@ export class FacturaService {
   }
 
   private generarPDF(factura: any, cita: any): Promise<Buffer> {
-    return new Promise(resolve => {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 });
-      const chunks: Buffer[] = [];
+  return new Promise(resolve => {
+    const doc = new PDFDocument({ size: 'LETTER', margin: 50 });
+    const chunks: Buffer[] = [];
 
-      doc.on('data', (c) => chunks.push(c));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-      // ENCABEZADO
-      doc.fontSize(22).fillColor('#6B66A6')
-        .text('CLÍNICA ODONTOLÓGICA', { align: 'center' })
-        .moveDown(2);
+    // ========== ENCABEZADO ==========
+    doc.fontSize(22)
+      .fillColor('#6B66A6')
+      .text('CLÍNICA ODONTOLÓGICA', { align: 'center' })
+      .moveDown(2);
 
-      // DATOS DEL PACIENTE
-      doc.fontSize(12).fillColor('black')
-        .text(`Nombre del paciente: ${cita.paciente?.nombre ?? ''} ${cita.paciente?.apellido ?? ''}`)
-        .moveDown(0.3)
-        .text(`DNI del paciente: ${cita.paciente?.dni ?? ''}`)
-        .moveDown(0.3)
-        .text(`Doctor: ${cita.doctor?.persona?.nombre ?? ''} ${cita.doctor?.persona?.apellido ?? ''}`)
-        .moveDown(1);
+    // ========== BLOQUE IZQUIERDO (DATOS DEL PACIENTE) ==========
+    doc.fontSize(12).fillColor('black');
+    const startY = doc.y;
 
-      const rightY = doc.y - 65;
+    doc.text(`Nombre del paciente: ${cita?.paciente?.nombre ?? ''} ${cita?.paciente?.apellido ?? ''}`)
+      .moveDown(0.3)
+      .text(`DNI del paciente: ${cita?.paciente?.dni ?? ''}`)
+      .moveDown(0.3)
+      .text(`Doctor: ${cita?.doctor?.persona?.nombre ?? ''} ${cita?.doctor?.persona?.apellido ?? ''}`);
 
-      // DATOS FACTURA
-      doc.fontSize(12)
-        .text(`FACTURA N.º: ${factura?.numeroFactura ?? ''}`, 350, rightY)
-        .text(`Fecha de emisión: ${factura?.fechaEmision ? new Date(factura.fechaEmision).toLocaleDateString() : ''}`, 350)
-        .text(`CAI: ${factura?.cai ?? ''}`, 350)
-        .moveDown(2);
+    // ========== BLOQUE DERECHO (DATOS DE FACTURA) ==========
+    const rightX = 350;
 
-      // TABLA DETALLE
-      doc.fontSize(12).fillColor('#6B66A6')
-        .text('Descripción', 50, doc.y, { continued: true })
-        .text('Cantidad', 260, doc.y, { continued: true })
-        .text('Precio', 340, doc.y, { continued: true })
-        .text('Total', 430)
-        .moveDown(0.5);
+    doc.fontSize(12)
+      .text(`FACTURA N.º: ${factura?.numeroFactura ?? ''}`, rightX, startY)
+      .text(`Fecha de emisión: ${factura?.fechaEmision ? new Date(factura.fechaEmision)
+        .toLocaleDateString() : ''}`, rightX)
+      .text(`RTN: ${factura?.rtn ?? ''}`, rightX)
+      .text(`CAI: ${factura?.cai ?? ''}`, rightX)
+      .text(`Rango de autorización: ${factura?.rango ?? ''}`, rightX)
+      .moveDown(2);
 
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.8);
+    // ========== ENCABEZADO TABLA ==========
+const tableY = doc.y + 10; 
 
-      (factura?.detalles ?? []).forEach(item => {
-        doc.fontSize(11).fillColor('black')
-          .text(item.descripcion ?? '', 50, doc.y, { width: 200 })
-          .text((item.cantidad ?? 0).toString(), 260, doc.y)
-          .text(`L. ${Number(item.precioUnitario ?? item.precio ?? 0).toFixed(2)}`, 340, doc.y)
-          .text(`L. ${Number(item.totalLinea ?? 0).toFixed(2)}`, 430)
-          .moveDown(0.8);
-      });
+doc.fontSize(12).fillColor('#6B66A6');
 
-      doc.moveDown(1);
+doc.text('Descripción', 50, tableY);
+doc.text('Cantidad', 250, tableY);
+doc.text('Precio', 340, tableY);
+doc.text('Total', 430, tableY);
 
-      // TOTALES
-      doc.fontSize(11).fillColor('black')
-        .text(`SUBTOTAL:`, 350)
-        .text(`ISV 15%:`, 350)
-        .font('Helvetica-Bold')
-        .text(`TOTAL A PAGAR:`, 350)
-        .font('Helvetica')
-        .text(`L. ${Number(factura?.subtotal ?? 0).toFixed(2)}`, 480)
-        .text(`L. ${Number(factura?.isv15 ?? 0).toFixed(2)}`, 480)
-        .font('Helvetica-Bold')
-        .text(`L. ${Number(factura?.totalPagar ?? 0).toFixed(2)}`, 480);
+// Línea horizontal debajo del encabezado
+doc.moveTo(50, tableY + 18)
+   .lineTo(550, tableY + 18)
+   .strokeColor('#6B66A6')
+   .stroke();
 
-      doc.end();
-    });
-  }
+doc.moveDown(2);
+
+// ========== FILAS DE DETALLE ==========
+let rowY = tableY + 30;
+
+(factura?.detalles ?? []).forEach(item => {
+
+  // Servicio
+  doc.font('Helvetica-Bold')
+     .fontSize(11)
+     .fillColor('black')
+     .text(item.descripcion ?? '', 50, rowY, { width: 180 });
+
+  // Cantidad
+  doc.font('Helvetica')
+     .fontSize(11)
+     .text(String(item.cantidad ?? 1), 250, rowY);
+
+  // Precio unitario
+  doc.text(`L. ${Number(item.precioUnitario ?? item.precio ?? 0).toFixed(2)}`, 340, rowY);
+
+  // Total línea
+  doc.text(`L. ${Number(item.totalLinea ?? 0).toFixed(2)}`, 430, rowY);
+
+  rowY += 25;  // separación vertical fija para mantener limpieza
+});
+
+// ========== TOTALES con más separación ==========
+
+const labels = [
+  'SUBTOTAL:',
+  'DESCUENTOS O REBAJAS:',
+  'IMPORTE EXONERADO:',
+  'IMPORTE EXENTO:',
+  'IMPORTE GRAVADO 15%:',
+  'IMPORTE GRAVADO 18%:',
+  'I.S.V. 15%:',
+  'I.S.V. 18%:',
+  'TOTAL A PAGAR:'
+];
+
+const values = [
+  factura?.subtotal ?? 0,
+  factura?.descuentos ?? 0,
+  factura?.exonerado ?? 0,
+  factura?.exento ?? 0,
+  factura?.gravado15 ?? 0,
+  factura?.gravado18 ?? 0,
+  factura?.isv15 ?? 0,
+  factura?.isv18 ?? 0,
+  factura?.totalPagar ?? 0
+];
+
+// Coordenadas con mayor separación
+let yTot = doc.y + 20;
+const LABEL_X = 280;   // ← SEPARADO A LA IZQUIERDA
+const VALUE_X = 500;   // ← SEPARADO A LA DERECHA
+const LINE_HEIGHT = 22;
+
+for (let i = 0; i < labels.length; i++) {
+
+  // Label
+  doc.font('Helvetica')
+     .fontSize(11)
+     .text(labels[i], LABEL_X, yTot);
+
+  // Value (último en negrita)
+  doc.font(i === labels.length - 1 ? 'Helvetica-Bold' : 'Helvetica')
+     .text(`L. ${Number(values[i]).toFixed(2)}`, VALUE_X, yTot);
+
+  yTot += LINE_HEIGHT;
+}
+
+
+    // ========== PIE DE PÁGINA ==========
+   doc.moveDown(4);
+
+doc.fontSize(11).fillColor('#6B66A6');
+
+// Izquierda
+doc.text('DIRECCIÓN NEGOCIO', 300)
+   .text('CLINICA@MAIL.COM', 300);
+
+// Derecha
+doc.text('(504) 1234-5678', 430)
+   .text('www.url.com', 430);
+
+
+    doc.end();
+  });
+}
+
 
   // Método para buscar la cita facturable por paciente
   async BuscarCita(pacienteId: number) {
