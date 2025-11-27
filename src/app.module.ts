@@ -11,8 +11,10 @@ import { NotificationModule } from './notificaciones/notificaciones.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecordatorioModule } from './Recordatorio/recordatorio.module';
 import { LogsModule } from './logs/logs.module';
+import { CrearFacturaModule } from './CrearFactura/crearFactura.module';
 import { EspecialidadModule } from './especialidad/especialidad.module';
 import { CorreoVerificacion } from './correo-verificacion/correo-verificacion.module';
+import { HistorialFacturaModule } from './historialFacturas/historialF.module';
 
 
 
@@ -29,8 +31,10 @@ import { CorreoVerificacion } from './correo-verificacion/correo-verificacion.mo
     PrismaModule,
     RecordatorioModule,
     LogsModule,
+    CrearFacturaModule,
     EspecialidadModule,
     CorreoVerificacion,
+    HistorialFacturaModule
     
   ],
 })
