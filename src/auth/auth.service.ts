@@ -6,11 +6,10 @@ import { SignupDto } from './dto/signup.dto';
 import * as bcrypt from 'bcrypt';
 import e from 'express';
 
-const loginAttempts = new Map<string, {count: number; lastAttempt: number}>();
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
 const MAX_ATTEMPTS = 3;
 const BLOCK_TIME_MS = 30_000;
-
 
 @Injectable()
 export class AuthService {
@@ -22,18 +21,22 @@ export class AuthService {
   async validateUser(authPayload: AuthPayloadDto, isSocial = false) {
     try {
       const { correo, password } = authPayload;
-      
+
       if (!loginAttempts.has(correo)) {
-        loginAttempts.set(correo, {count: 0, lastAttempt: 0});
+        loginAttempts.set(correo, { count: 0, lastAttempt: 0 });
       }
-      
+
       const attempt = loginAttempts.get(correo)!;
       const now = Date.now();
-     
-      
-      if (attempt.count >= MAX_ATTEMPTS && now - attempt.lastAttempt < BLOCK_TIME_MS) {
-        const retryAfter = Math.ceil((BLOCK_TIME_MS - (now - attempt.lastAttempt)) / 1000);
-        
+
+      if (
+        attempt.count >= MAX_ATTEMPTS &&
+        now - attempt.lastAttempt < BLOCK_TIME_MS
+      ) {
+        const retryAfter = Math.ceil(
+          (BLOCK_TIME_MS - (now - attempt.lastAttempt)) / 1000,
+        );
+
         return {
           message: `Demasiados intentos fallidos. Intente de nuevo en ${retryAfter} segundos.`,
           code: 99,
@@ -50,29 +53,62 @@ export class AuthService {
       if (!findUser) {
         attempt.count++;
         attempt.lastAttempt = now;
-        
+
         return { message: 'Credenciales Invalidas', code: 11 };
       }
 
+      // Variables para login normal y temporal
+      let passwordMatch = false;
+      let esPasswordTemporal = false;
+
       // Si es login normal (no social), validar contraseña
       if (!isSocial) {
-        if (!findUser.password) {
-          attempt.count++;
-          attempt.lastAttempt = now;
-          
-          return { message: 'Credenciales Invalidas', code: 14 };
+        if (findUser.password) {
+          passwordMatch = await bcrypt.compare(password, findUser.password);
         }
 
-        const passwordMatch = await bcrypt.compare(password, findUser.password);
-        if (!passwordMatch) {
+        if (findUser.passwordTemporal) {
+          console.log("Password recibido:", `"${password}"`);
+          console.log("Hash temporal:", findUser.passwordTemporal);
+          esPasswordTemporal = await bcrypt.compare(
+            password,
+            findUser.passwordTemporal,
+          );
+        }
+
+        if (!passwordMatch && !esPasswordTemporal) {
           attempt.count++;
           attempt.lastAttempt = now;
-        
+
           return { message: 'Credenciales Invalidas', code: 13 };
         }
       }
+
+      loginAttempts.set(correo, { count: 0, lastAttempt: 0 });
+
+      if (esPasswordTemporal) {
+        // Validar expiración
+        if (
+          findUser.passwordTemporalExpira &&
+          findUser.passwordTemporalExpira < new Date()
+        ) {
+          return {
+            message:
+              'La contraseña temporal ha expirado. Contacte al administrador.',
+            code: 25,
+          };
+        }
+
+        // Si aun es válida pero requiere cambio entonces se bloquea el login normal
+        return {
+          necesitaCambiarPassword: true,
+          message: 'Debe cambiar su contraseña temporal.',
+          user: { correo: findUser.correo },
+          code: 26,
+        };
+      }
+
       
-      loginAttempts.set(correo, {count:0, lastAttempt:0});
 
       //verificar si es un empleado
       const empleado = await this.prisma.empleado.findFirst({
@@ -86,9 +122,7 @@ export class AuthService {
       if (empleado) {
         user['empleadoId'] = empleado.id;
         const newLog = await this.prisma.logs.create({
-          data: { empleadoId: empleado.id, 
-            login: new Date(), 
-            logout: null },
+          data: { empleadoId: empleado.id, login: new Date(), logout: null },
         });
       }
 
