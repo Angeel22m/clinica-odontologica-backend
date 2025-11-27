@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard'; // Necesitas tu guard d
 import { RolesGuard } from '../auth/roles.guard'; // Necesitas tu guard de roles
 import { Roles } from '../auth/roles.decorator';
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
+import { ResetPasswordAdminDto } from './dtoModificar/resetPassword.dto';
 
 @ApiTags('Modificar')
 @Controller('Modificar')
@@ -128,6 +129,24 @@ export class ModificadorInfoController {
         correo,
         dto,
         req.user, // viene del JWT
+      );
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Patch('restablecer-password/:correo')
+  @Roles('ADMIN')
+  async restablecerPassword(
+    @Param('correo') correo: string,
+    @Body() dto: ResetPasswordAdminDto,
+    @Req() req: any,
+  ) {
+    try {
+      return await this.modificadorInfoService.restablecerPassword(
+        correo,
+        dto,
+        req.user,
       );
     } catch (error) {
       throw new BadRequestException(error.message);

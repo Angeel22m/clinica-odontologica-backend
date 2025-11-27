@@ -2,11 +2,14 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ClientProxy } from '@nestjs/microservices';
 import { UpdateModificarInfoDto } from './dtoModificar/update.modificarInfo';
 import * as bcrypt from 'bcrypt';
 import { CambiarPasswordDto } from './dtoModificar/cambiarPassword.dto';
+import { ResetPasswordAdminDto } from './dtoModificar/resetPassword.dto';
 
 type SearchCriterion = {
   correo?: string;
@@ -14,9 +17,18 @@ type SearchCriterion = {
   telefono?: string;
 };
 
+interface passwordCorreoPayload {
+  correo: string;
+  codigo: string;
+  asunto: string;
+}
+
 @Injectable()
 export class ModificarInfoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject('MAIL_SERVICE') private readonly mailClient: ClientProxy,
+  ) { }
 
   /**
    * Función interna modular: Busca un usuario/cliente basado en un criterio.
@@ -366,5 +378,130 @@ export class ModificarInfoService {
       console.error(error);
       return { message: 'Error interno del servidor', code: 500 };
     }
+  }
+
+  // método para generar contrasñeas temporales
+  private generarPasswordTemporal(): string {
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}';
+    const length = 12;
+    let pass = '';
+    for (let i = 0; i < length; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  }
+
+  async restablecerPassword(
+    correo: string,
+    dto: ResetPasswordAdminDto,
+    userAuth: any,
+  ) {
+    // Solo ADMIN
+    if (userAuth.rol !== 'ADMIN') {
+      return {
+        message: 'Solo un administrador puede restablecer contraseñas.',
+        code: 403,
+      };
+    }
+
+    // Buscar usuario
+    const user = await this.prisma.user.findUnique({
+      where: { correo },
+    });
+
+    if (!user) {
+      return { message: 'Usuario no encontrado.', code: 404 };
+    }
+
+    // PROTEGER que el admin no se cambie a sí mismo aquí
+    if (userAuth.correo === correo) {
+      return {
+        message: 'No puede restablecer su propia contraseña.',
+        code: 400,
+      };
+    }
+
+    let passwordTemporal: string;
+
+    if (dto.nuevaPassword) {
+      // El admin quiere asignar una manual
+      passwordTemporal = dto.nuevaPassword;
+    } else {
+      // Generar automáticamente
+      passwordTemporal = this.generarPasswordTemporal();
+    }
+    try {
+      // Hashear
+      const hashed = await bcrypt.hash(passwordTemporal, 10);
+
+      // Expiración en 24 horas
+      const expiracion = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Actualizar usuario
+      await this.prisma.user.update({
+        where: { correo },
+        data: {
+          password: hashed,
+          requierCambioPassword: true,
+          passwordTemporalExpira: expiracion,
+        },
+      });
+
+      await this.temporaryPasswordCorreo(user.id, passwordTemporal);
+
+      return {
+        message: 'Contraseña restablecida correctamente.',
+        passwordTemporal, // mostrar solo la NUEVA temporal
+      };
+    } catch (error) {
+      console.error(error);
+      return { message: 'Error interno del servidor', code: 500 };
+    }
+  }
+
+  async temporaryPasswordCorreo(userId: number, passwordTemporal: string) {
+    const EXPIRATION_HOURS = 24;
+
+    // 1. Obtener la información del usuario (necesitamos el email)
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { correo: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    // Hashear
+    const hashed = await bcrypt.hash(passwordTemporal, 10);
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + EXPIRATION_HOURS);
+
+    // 2. Almacenar/Sobrescribir el código usando update
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordTemporal: hashed,
+        passwordTemporalExpira: expiresAt,
+        requierCambioPassword: true,
+      },
+    });
+
+    // 3. EMISIÓN del evento a la cola de RabbitMQ
+    const payload = {
+      correo: user.correo,
+      codigo: passwordTemporal,
+      asunto: 'Restablecimiento de Contraseña Temporal',
+    };
+
+    // PATRÓN: 'send_verification_email'
+    // El microservicio/trabajador (worker) que consume la cola esperará este patrón.
+    this.mailClient.emit('send_verification_email', payload);
+
+    return {
+      message: 'Contraseña temporal generada y enviada al correo.',
+    };
   }
 }
