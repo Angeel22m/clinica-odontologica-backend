@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateModificarInfoDto } from './dtoModificar/update.modificarInfo';
 import * as bcrypt from 'bcrypt';
+import { CambiarPasswordDto } from './dtoModificar/cambiarPassword.dto';
 
 type SearchCriterion = {
   correo?: string;
@@ -15,7 +16,7 @@ type SearchCriterion = {
 
 @Injectable()
 export class ModificarInfoService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Función interna modular: Busca un usuario/cliente basado en un criterio.
@@ -292,6 +293,74 @@ export class ModificarInfoService {
       return {
         message: 'Información actualizada correctamente.',
         data: actualizado,
+      };
+    } catch (error) {
+      console.error(error);
+      return { message: 'Error interno del servidor', code: 500 };
+    }
+  }
+
+  //modifcar contraseña del usuario
+  async cambiarPassword(
+    correo: string,
+    dto: CambiarPasswordDto,
+    userAuth: any,
+  ) {
+    const { passwordActual, passwordNueva } = dto;
+
+    // Verificar si el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { correo },
+    });
+
+    if (!user) {
+      return {
+        message: 'Usuario no encontrado.',
+        code: 400,
+      };
+    }
+
+    // VALIDACIÓN ESTRICTA:
+    // Solo el usuario dueño puede cambiar su contraseña
+    if (userAuth.correo !== correo) {
+      return {
+        message: 'No tiene permiso para cambiar la contraseña de otro usuario.',
+        code: 403,
+      };
+    }
+    if (!user.password) {
+      return {
+        message: 'El usuario no tiene contraseña registrada.',
+        code: 400,
+      };
+    }
+    // Validar contraseña actual
+    const esCorrecta = await bcrypt.compare(passwordActual, user.password);
+    if (!esCorrecta) {
+      return {
+        message: 'La contraseña actual es incorrecta.',
+        code: 401,
+      };
+    }
+
+    if (passwordActual === passwordNueva) {
+      return {
+        message: 'La nueva contraseña no puede ser igual a la actual.',
+        code: 401,
+      };
+    }
+    try {
+      // Hashear la nueva contraseña
+      const hashed = await bcrypt.hash(passwordNueva, 10);
+
+      // Actualizar en BD
+      await this.prisma.user.update({
+        where: { correo },
+        data: { password: hashed },
+      });
+
+      return {
+        message: 'Contraseña actualizada correctamente.',
       };
     } catch (error) {
       console.error(error);
